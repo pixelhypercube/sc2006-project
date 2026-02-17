@@ -1,55 +1,87 @@
 import Modal from "./components/Modal"
 import Navbar from "./components/Navbar"
+import SideModal from "./components/SideModal"
 
 export default function Home() {
+    // for the how it works section
+
     return (
         <div>
             <Navbar/>
-            <header className="w-full p-20 text-center bg-blue-900">
-                <h1 className="text-8xl mb-10 font-bold" style={{fontSize:"40px"}}>Welcome to Pawsite!</h1>
-                <h3 className="mt-10">We provide care for pet owners!</h3>
+            <header className="w-full p-20 text-center bg-secondary">
+                <h1 className="text-8xl mb-10 font-bold">Pawsport & Peer</h1>
+                <h3 className="mt-10 text-2xl">Providing care for pet owners since 2026</h3>
             </header>
             <main className="w-full p-20 text-center">
-                <h1 className="mb-10" style={{fontSize:"40px"}}>What we offer</h1>
-                <div className="grid grid-cols-2 gap-4">
-                    <Modal 
-                        title = "Pet Services"
-                        body = "We provide one of the best pet services we can ever do in Singapore!"
-                        imgUrl = {"./file.svg"}
+                <div className="mb-10">
+                    <h1 className="mb-10 font-bold" style={{fontSize:"40px"}}>What we offer</h1>
+                    <div className="grid xl:grid-cols-4 md:grid-cols-2 gap-10 mb-10">
+                        <Modal 
+                            title = "Pet Services"
+                            body = "Stay connected with your pet through 10-15 second video check-ins. Our secure, time-limited links ensure you get real-time evidence of care without compromising privacy."
+                            imgUrl = {"./modal/paw.svg"}
+                            // inverseImg={true}
+                        />
+                        <Modal 
+                            title = "Behavioral Blueprints"
+                            body = "Create a detailed behavioural blueprint for your pet, including specific triggers, dietary sensitivities, and care notes to ensure your peer caregiver is fully prepared."
+                            imgUrl = {"./modal/location_pin.svg"}
+                            // inverseImg={true}
+                        />
+                        <Modal 
+                            title="Smart Logistics Matching"
+                            body = "Find the perfect local caregiver using our intelligent matching engine. We factor in proximity, local weather conditions, and nearby veterinary facilities to ensure a safe environment."
+                            imgUrl = {"./modal/send.svg"}
+                            // inverseImg={true}
+                        />
+                        <Modal 
+                            title="Privacy & Data Expiry"
+                            body = "Your privacy is our priority. We utilize automated data retention policies that expire video evidence after the care period, keeping your media off messaging platforms and on our secure, temporary storage."
+                            imgUrl = {"./modal/shield_exclaimation.svg"}
+                            // inverseImg={true}
+                        />
+                    </div>
+                </div>
+                <div>
+                    <h1 className="text-4xl font-bold mb-10">How it works</h1>
+                    <SideModal
+                    title="Step 1: Create a blueprint"
+                    description="Tell the system about your pet's needs"
                     />
-                    <Modal 
-                        title = "Care Consulting"
-                        body = "We provide the best care consultation services for pets and pet owners!"
-                        imgUrl = {"./window.svg"}
+                    <SideModal
+                    title="Step 2: Match & Request"
+                    description="Find a caregiver and send a time-limited check-in request."
                     />
-                    <Modal 
-                        title="Location Finder"
-                        body = "With the most modern technologies we have, we can accurately identify the best locations for you to play with your pets!"
-                        imgUrl = {"./globe.svg"}
+                    <SideModal
+                    title="Step 3: Secure Upload"
+                    description="The caregiver uploads a 10-15s video via a one-time link"
                     />
-                    <Modal 
-                        title="Pet Rescuer"
-                        body = "We have a function that would help you rescue your pets!"
-                        imgUrl = {"./globe.svg"}
+                    <SideModal
+                    title="Step 4: Peace of Mind"
+                    description="Review the evidence and approve the care."
                     />
                 </div>
+                <div>
+                    <h1 className="text-4xl font-bold mb-10">Join Us Now!</h1>
+                    <a className="bg-secondary p-3 rounded-2xl shadow-xl font-bold text-xl" href="/signup">Sign Up</a>
+                </div>
             </main>
-            <footer className="p-5 bg-emerald-900">
-                <h1 className="text-center font-bold">Contact us here! We won't bite :)</h1>
+            <footer className="p-5 bg-[#68B0AB]">
+                <h1 className="text-center font-semibold text-3xl">Contact us here! We won't bite :)</h1>
                 <div className="flex w-full justify-between">
                     <div className="p-10">
-                        <h3>Find us on</h3>
+                        <h3 className="text-xl">Find us on</h3>
                         <div className="flex">
-                            <img style={{filter:`invert(100%)`,width:"48px"}} src={"./fb.svg"} />
-                            <img style={{filter:`invert(100%)`,width:"48px"}} src={"./ig.svg"} />
-                            <img style={{filter:`invert(100%)`,width:"48px"}} src={"./x.svg"} />
+                            <img style={{width:"48px"}} src={"./social/fb.svg"} />
+                            <img style={{width:"48px"}} src={"./social/ig.svg"} />
+                            <img style={{width:"48px"}} src={"./social/x.svg"} />
                         </div>
                     </div>
                     <div className="p-10">
-                        <h3>Contact Us</h3>
+                        <h3 className="text-xl">Contact Us</h3>
                         <div className="flex">
-                            <img style={{filter:`invert(100%)`,width:"48px"}} src={"./wa.svg"} />
-                            <img style={{filter:`invert(100%)`,width:"48px"}} src={"./email.svg"} /> 
+                            <img style={{width:"48px"}} src={"./social/wa.svg"} />
+                            <img style={{width:"48px"}} src={"./social/email.svg"} /> 
                         </div>
                     </div>
                 </div>

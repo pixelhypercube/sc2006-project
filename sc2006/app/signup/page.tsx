@@ -71,51 +71,55 @@ export default function Login() {
                 setDialogVisible(false);
             },dialogVisibilityCooldown);
         }
+
+        
     }
         
     return (
         <div>
             <Navbar/>
-            <main className="text-center flex">
+            <main className="text-center flex flex-col lg:flex-row">
                 {/* LEFT SIDE */}
-                <div className="w-1/2 align-middle flex flex-col justify-center">
-                    <h1 className="mt-20 text-4xl font-bold">Create a new account</h1>
+                <div className="lg:w-2/5 align-middle flex flex-col justify-center">
+                    <h1 className="mt-20 text-6xl font-semibold">Create a new account</h1>
                 </div>
                 {/* RIGHT SIDE */}
-                <div className="flex justify-center w-1/2">
-                    <form onSubmit={signup} className=" p-4 mt-10">
+                <div className="lg:w-3/5 flex justify-center">
+                    <form onSubmit={signup} className="p-20 mt-10 w-full">
                         <div className="flex flex-col mb-4">
                             <label className="text-xl text-left">Email</label>
-                            <input ref={emailRef} className="border-gray-400 rounded-lg p-2 bg-gray-900 focus:outline-none" onChange={e=>setEmail(e.target.value)} type="email"/>
+                            <input ref={emailRef} className="border-gray-400 rounded-lg p-2 bg-surface shadow-xl focus:outline-none" onChange={e=>setEmail(e.target.value)} type="email"/>
                         </div>
                         <div className="flex flex-col mb-4">
                             <label className="text-xl text-left">Username</label>
-                            <input ref={usernameRef} className="border-gray-400 rounded-lg p-2 bg-gray-900 focus:outline-none" onChange={e=>setUsername(e.target.value)} type="text"/>
+                            <input ref={usernameRef} className="border-gray-400 rounded-lg p-2  bg-surface shadow-xl focus:outline-none" onChange={e=>setUsername(e.target.value)} type="text"/>
                         </div>
                         <div className="flex flex-col mb-4">
                             <label className="text-xl text-left">Password</label>
-                            <input ref={passwordRef} className="border-gray-400 rounded-lg p-2 bg-gray-900 focus:outline-none" onKeyUp={e=>changePasswordHandler(e)} onChange={e=>changePasswordHandler(e)} type="password"/>
-                            <small className="text-left text-amber-700 mt-3 text-md"><u>* Password must meet the following requirements:</u>
+                            <input ref={passwordRef} className="border-gray-400 rounded-lg p-2  bg-surface shadow-xl focus:outline-none" onKeyUp={e=>changePasswordHandler(e)} onChange={e=>changePasswordHandler(e)} type="password"/>
+                            <small className="text-left text-amber-700 mt-3 text-md"><strong><u>* Password must meet the following requirements:</u></strong>
                                 <ul>
                                     <li className={`${password.length>=8 ? "text-emerald-500" : "text-amber-700"}`}>8 characters minimum {password.length>=8 ? "✓" : ""}</li>
                                     <li className={`${isPwdUppercasePresent ? "text-emerald-500" : "text-amber-700"}`}>Uppercase letters {isPwdUppercasePresent ? "✓" : ""}</li>
                                     <li className={`${isPwdLowercasePresent ? "text-emerald-500" : "text-amber-700"}`}>Lowercase letters {isPwdLowercasePresent ? "✓" : ""}</li>
                                     <li className={`${isPwdNumbersPresent ? "text-emerald-500" : "text-amber-700"}`}>Numbers {isPwdNumbersPresent ? "✓" : ""}</li>
-                                    <li className={`${isPwdSymbolsPresent ? "text-emerald-500" : "text-amber-700"}`}>Symbols {isPwdSymbolsPresent ? "✓" : ""}</li>
+                                    <li className={`${isPwdSymbolsPresent ? "text-emerald-500" : "text-amber-700"}`}>Symbols (e.g. ! @ # $ %) {isPwdSymbolsPresent ? "✓" : ""}</li>
                                 </ul>
                             </small>
                         </div>
                         <div className="flex flex-col mb-4">
                             <label className="text-xl text-left">Confirm Password</label>
-                            <input ref={confirmPasswordRef} className="border-gray-400 rounded-lg p-2 bg-gray-900 focus:outline-none" onChange={e=>setConfirmPassword(e.target.value)} type="password"/>
+                            <input ref={confirmPasswordRef} className="border-gray-400 rounded-lg p-2 b bg-surface shadow-xl focus:outline-none" onChange={e=>setConfirmPassword(e.target.value)} type="password"/>
+                            <button></button>
                         </div>
-                        <hr/>
+                        <hr className="border-gray-400" />
                         <div className="flex flex-col mt-4">
-                            <input className="p-2 bg-emerald-800 rounded-lg" type="submit"/>
+                            <input className="p-2 bg-secondary rounded-lg" type="submit"/>
+                            <p className="mt-5">Already on Pawsport & Pair? <a href="/login">Sign in</a></p>
                         </div>
                         <div className="flex flex-col mt-4">
                             <div 
-                            className={`${isShaking ? "animate-shake" : ""} bg-red-800 rounded-xl text-center p-4 ${!isDialogVisible ? "hidden" : ""}`}>
+                            className={`${isShaking ? "animate-shake" : ""} bg-red-800 rounded-xl text-center p-4 ${isDialogVisible ? "visible" : "invisible"}`}>
                                 <p>{dialogMessage}</p>
                             </div>
                         </div>

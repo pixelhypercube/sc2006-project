@@ -1,29 +1,39 @@
 interface NavbarComponents {
     leftLinks?: Record<string, string>,
+    middleLinks?: Record<string, string>,
     rightLinks?: Record<string, string>,
-    backgroundColor?: string,
+    background?: string,
 }
 
 export default function Navbar({
     leftLinks = {
-        "Home" : "/",
-        "About Us": "/about"
+        "Pawsport & Peer" : "/",
+    },
+    middleLinks = {
+        "Search Caregivers": "/search_caregivers",
+        "Pet Profile": "/pet_profile",
+        "Incident Reporting": "/incident_reporting"
     },
     rightLinks = {
-        "Signup" : "/signup"
+        "Sign Up" : "/signup"
     },
-    backgroundColor="#1e2b52"
+    background="#FFFFFF"
 } : NavbarComponents) {
     return (
-        <nav style={{backgroundColor}} className={`sticky top-0 flex w-full justify-between`}>
-            <div className="flex w-half">
+        <nav style={{background}} className={`sticky top-0 flex w-full justify-between z-10`}>
+            <div className="flex w-1/3 justify-center">
                 {Object.keys(leftLinks).map(key=>(
-                    <ul className="p-3 text-xl" key={key}><a href={leftLinks[key]}>{key}</a></ul>
+                    <ul className="p-3 text-lg" key={key}><a href={leftLinks[key]}>{key}</a></ul>
                 ))}
             </div>
-            <div className="flex w-half">
+            <div className="flex w-1/3 justify-center">
+                {Object.keys(middleLinks).map(key=>(
+                    <ul className="p-3 text-lg" key={key}><a href={leftLinks[key]}>{key}</a></ul>
+                ))}
+            </div>
+            <div className="flex w-1/3 justify-center">
                 {Object.keys(rightLinks).map(key=>(
-                    <ul className="p-3 text-xl" key={key}><a href={rightLinks[key]}>{key}</a></ul>
+                    <ul className="p-3 text-lg" key={key}><a href={rightLinks[key]}>{key}</a></ul>
                 ))}
             </div>
         </nav>
