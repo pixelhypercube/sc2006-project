@@ -1,6 +1,8 @@
 "use client"
 import { useState, SubmitEvent, useRef, ChangeEvent, KeyboardEvent } from "react";
 import Navbar from "../components/Navbar";
+import { FaEye } from "react-icons/fa";
+import PasswordInput from "../components/form/PasswordInput";
 
 export default function Login() {
 
@@ -30,6 +32,12 @@ export default function Login() {
     ) {
         setPassword(event.currentTarget.value);
         validatePassword(password);
+    }
+
+    function changeConfirmPasswordHandler(
+        event: ChangeEvent<HTMLInputElement> | KeyboardEvent<HTMLInputElement>
+    ) {
+        setPassword(event.currentTarget.value);
     }
 
     const dialogVisibilityCooldown = 2000;
@@ -87,31 +95,38 @@ export default function Login() {
                 <div className="lg:w-3/5 flex justify-center">
                     <form onSubmit={signup} className="p-20 mt-10 w-full">
                         <div className="flex flex-col mb-4">
-                            <label className="text-xl text-left">Email</label>
+                            <label className="text-xl text-left mb-2">Email</label>
                             <input ref={emailRef} className="border-gray-400 rounded-lg p-2 bg-surface shadow-xl focus:outline-none" onChange={e=>setEmail(e.target.value)} type="email"/>
                         </div>
                         <div className="flex flex-col mb-4">
-                            <label className="text-xl text-left">Username</label>
+                            <label className="text-xl text-left mb-2">Username</label>
                             <input ref={usernameRef} className="border-gray-400 rounded-lg p-2  bg-surface shadow-xl focus:outline-none" onChange={e=>setUsername(e.target.value)} type="text"/>
                         </div>
                         <div className="flex flex-col mb-4">
-                            <label className="text-xl text-left">Password</label>
+                            <label className="text-xl text-left mb-2">Password</label>
                             <input ref={passwordRef} className="border-gray-400 rounded-lg p-2  bg-surface shadow-xl focus:outline-none" onKeyUp={e=>changePasswordHandler(e)} onChange={e=>changePasswordHandler(e)} type="password"/>
-                            <small className="text-left text-amber-700 mt-3 text-md"><strong><u>* Password must meet the following requirements:</u></strong>
-                                <ul>
-                                    <li className={`${password.length>=8 ? "text-emerald-500" : "text-amber-700"}`}>8 characters minimum {password.length>=8 ? "✓" : ""}</li>
-                                    <li className={`${isPwdUppercasePresent ? "text-emerald-500" : "text-amber-700"}`}>Uppercase letters {isPwdUppercasePresent ? "✓" : ""}</li>
-                                    <li className={`${isPwdLowercasePresent ? "text-emerald-500" : "text-amber-700"}`}>Lowercase letters {isPwdLowercasePresent ? "✓" : ""}</li>
-                                    <li className={`${isPwdNumbersPresent ? "text-emerald-500" : "text-amber-700"}`}>Numbers {isPwdNumbersPresent ? "✓" : ""}</li>
-                                    <li className={`${isPwdSymbolsPresent ? "text-emerald-500" : "text-amber-700"}`}>Symbols (e.g. ! @ # $ %) {isPwdSymbolsPresent ? "✓" : ""}</li>
-                                </ul>
-                            </small>
+                            
                         </div>
-                        <div className="flex flex-col mb-4">
+                        <small className="text-left text-amber-700 mt-3 text-md">
+                            <strong><u>* Password must meet the following requirements:</u></strong>
+                            <ul>
+                                <li className={`${password.length>=8 ? "text-emerald-500" : "text-amber-700"}`}>8 characters minimum {password.length>=8 ? "✓" : ""}</li>
+                                <li className={`${isPwdUppercasePresent ? "text-emerald-500" : "text-amber-700"}`}>Uppercase letters {isPwdUppercasePresent ? "✓" : ""}</li>
+                                <li className={`${isPwdLowercasePresent ? "text-emerald-500" : "text-amber-700"}`}>Lowercase letters {isPwdLowercasePresent ? "✓" : ""}</li>
+                                <li className={`${isPwdNumbersPresent ? "text-emerald-500" : "text-amber-700"}`}>Numbers {isPwdNumbersPresent ? "✓" : ""}</li>
+                                <li className={`${isPwdSymbolsPresent ? "text-emerald-500" : "text-amber-700"}`}>Symbols (e.g. ! @ # $ %) {isPwdSymbolsPresent ? "✓" : ""}</li>
+                            </ul>
+                        </small>
+                        <PasswordInput
+                            label="Confirm Password"
+                            onChange={e=>changeConfirmPasswordHandler(e)}
+                        />
+                        {/* <div className="flex flex-col mb-4">
                             <label className="text-xl text-left">Confirm Password</label>
                             <input ref={confirmPasswordRef} className="border-gray-400 rounded-lg p-2 b bg-surface shadow-xl focus:outline-none" onChange={e=>setConfirmPassword(e.target.value)} type="password"/>
-                            <button></button>
-                        </div>
+                            <button><FaEye/></button>
+                            <p>{confirmPassword!=password || confirmPassword=="" ? "" : ""}</p>
+                        </div> */}
                         <hr className="border-gray-400" />
                         <div className="flex flex-col mt-4">
                             <input className="p-2 bg-secondary rounded-lg" type="submit"/>

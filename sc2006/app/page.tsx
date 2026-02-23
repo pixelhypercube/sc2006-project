@@ -3,8 +3,6 @@ import Navbar from "./components/Navbar"
 import SideModal from "./components/SideModal"
 
 export default function Home() {
-    // for the how it works section
-
     return (
         <div>
             <Navbar/>
@@ -45,20 +43,40 @@ export default function Home() {
                 <div>
                     <h1 className="text-4xl font-bold mb-10">How it works</h1>
                     <SideModal
-                    title="Step 1: Create a blueprint"
-                    description="Tell the system about your pet's needs"
+                        imgUrl={"./side_modals/blueprint.svg"}
+                        title="Step 1: Create a Blueprint"
+                        description="Tell the system about your pet's needs"
                     />
                     <SideModal
-                    title="Step 2: Match & Request"
-                    description="Find a caregiver and send a time-limited check-in request."
+                        imgUrl={"./side_modals/magnifying_glass.svg"}
+                        title="Step 2: Match & Request"
+                        description="Find a caregiver and send a time-limited check-in request."
                     />
                     <SideModal
-                    title="Step 3: Secure Upload"
-                    description="The caregiver uploads a 10-15s video via a one-time link"
+                        imgUrl={"./side_modals/camera.svg"}
+                        title="Step 3: Secure Upload"
+                        description="The caregiver uploads a 10-15s video via a one-time link"
                     />
                     <SideModal
-                    title="Step 4: Peace of Mind"
-                    description="Review the evidence and approve the care."
+                        imgUrl={"./side_modals/heart.svg"}
+                        title="Step 4: Peace of Mind"
+                        description="Review the evidence and approve the care."
+                    />
+                </div>
+                <div className="mb-10">
+                    <h1 className="text-4xl font-bold mb-10">Testimonials</h1>
+                    <Modal 
+                        title="Amazing service!"
+                        background={"#eeffcc"}
+                        body = "Thanks to this system, we are able to take care of our pets easily! - Jessica"
+                    />
+                </div>
+                <div className="mb-10">
+                    <h1 className="text-4xl font-bold mb-10">Frequently Asked Questions (FAQ)</h1>
+                    <SideModal
+                        imgUrl={"./side_modals/heart.svg"}
+                        title="How do you match and request caregivers?"
+                        description="Use our search caregivers functions to search for one of our highly trained caregivers for your pets!"
                     />
                 </div>
                 <div>
@@ -70,7 +88,7 @@ export default function Home() {
                 <h1 className="text-center font-semibold text-3xl">Contact us here! We won't bite :)</h1>
                 <div className="flex w-full justify-between">
                     <div className="p-10">
-                        <h3 className="text-xl">Find us on</h3>
+                    <h3 className="text-xl">Find us on</h3>
                         <div className="flex">
                             <img style={{width:"48px"}} src={"./social/fb.svg"} />
                             <img style={{width:"48px"}} src={"./social/ig.svg"} />
