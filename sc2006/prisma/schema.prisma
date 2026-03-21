@@ -15,13 +15,15 @@ datasource db {
 
 model User {
   id                      String        @id @default(cuid())
-  name                    String        @unique
+  name                    String
   password                String
   email                   String        @unique
   role                    Role          @default(OWNER)
   verified                Boolean       @default(false)
   status                  AccountStatus @default(ACTIVE)
   phone                   String?       @unique
+  biography               String?       @db.Text
+  dailyRate               Float?        @map("daily_rate")
   location                String?
   latitude                Float?
   longitude               Float?
@@ -52,11 +54,12 @@ model User {
 
 model CaregiverProfile {
   id                String    @id @default(cuid())
-  userId            String    @unique
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bio               String?   @db.Text
+  name              String
+  user              User      @relation(fields: [id], references: [id], onDelete: Cascade)
+  biography         String?   @db.Text
   dailyRate         Float     @map("daily_rate")
   petPreferences    PetType[]
+  location          String?
   experienceYears   Int?      @map("experience_years")
   verified          Boolean   @default(false)
   verificationDoc   String?   @map("verification_doc")
@@ -70,20 +73,22 @@ model CaregiverProfile {
 }
 
 model Pet {
-  id           String   @id @default(cuid())
-  ownerId      String   @map("owner_id")
-  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  name         String
-  type         PetType
-  breed        String?
-  age          Int?
-  weight       Float?
-  specialNeeds String?  @map("special_needs") @db.Text
-  photo        String?
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id                String   @id @default(cuid())
+  ownerId           String   @map("owner_id")
+  owner             User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name              String
+  type              String
+  breed             String?
+  vaccinationStatus String?
+  age               Int?
+  weight            Float?
+  specialNeeds      String?  @map("special_needs") @db.Text
+  photo             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
-  bookings BookingPet[]
+  // Relations
+  bookings Booking[]
 
   @@index([ownerId])
   @@index([type])
@@ -94,6 +99,7 @@ model Booking {
   id                  String        @id @default(cuid())
   ownerId             String        @map("owner_id")
   caregiverId         String        @map("caregiver_id")
+  petId               String        @map("pet_id")
   startDate           DateTime      @map("start_date")
   endDate             DateTime      @map("end_date")
   status              BookingStatus @default(PENDING)
@@ -103,29 +109,18 @@ model Booking {
   updatedAt           DateTime      @updatedAt @map("updated_at")
 
   // Relations
-  owner     User         @relation("OwnerBookings", fields: [ownerId], references: [id])
-  caregiver User         @relation("CaregiverBookings", fields: [caregiverId], references: [id])
-  pets      BookingPet[]
+  owner     User      @relation("OwnerBookings", fields: [ownerId], references: [id])
+  caregiver User      @relation("CaregiverBookings", fields: [caregiverId], references: [id])
+  pet       Pet       @relation(fields: [petId], references: [id])
   review    Review?
   payment   Payment?
   messages  Message[]
 
-  @@unique([ownerId, caregiverId, startDate])
+  @@unique([ownerId, caregiverId, petId, startDate])
   @@index([caregiverId, status])
   @@index([ownerId, status])
   @@index([startDate, endDate])
   @@map("bookings")
-}
-
-// Junction table for many-to-many between Booking and Pet
-model BookingPet {
-  bookingId String  @map("booking_id")
-  petId     String  @map("pet_id")
-  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  pet       Pet     @relation(fields: [petId], references: [id], onDelete: Cascade)
-
-  @@id([bookingId, petId])
-  @@map("booking_pets")
 }
 
 model Review {
@@ -176,23 +171,29 @@ model AvailabilityException {
   @@map("availability_exceptions")
 }
 
+model Chat {
+  senderId   String @map("sender_id")
+  receiverId String @map("receiver_id")
+
+  @@unique([senderId, receiverId])
+  @@index([senderId, receiverId])
+}
+
 model Message {
   id         String   @id @default(cuid())
   senderId   String   @map("sender_id")
   receiverId String   @map("receiver_id")
-  bookingId  String?  @map("booking_id")
   content    String   @db.Text
-  read       Boolean  @default(false)
   createdAt  DateTime @default(now()) @map("created_at")
 
-  sender   User     @relation("MessageSender", fields: [senderId], references: [id])
-  receiver User     @relation("MessageReceiver", fields: [receiverId], references: [id])
-  booking  Booking? @relation(fields: [bookingId], references: [id])
-  user     User?    @relation(fields: [userId], references: [id])
-  userId   String?
+  sender    User     @relation("MessageSender", fields: [senderId], references: [id])
+  receiver  User     @relation("MessageReceiver", fields: [receiverId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  booking   Booking? @relation(fields: [bookingId], references: [id])
+  bookingId String?
 
   @@index([senderId, receiverId])
-  @@index([bookingId])
   @@index([createdAt])
   @@map("messages")
 }

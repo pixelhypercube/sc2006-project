@@ -1,7 +1,10 @@
 "use client"
-import { useState } from "react";
-import Navbar from "../../components/Navbar";
-import BookingModal from "./BookingModal";
+import { useState, useEffect, useCallback } from "react";
+import { useParams } from 'next/navigation'; 
+import Navbar from "../../../components/Navbar";
+import BookingModal from "../BookingModal";
+import { useUsers } from "@/hooks/useUsers";
+import { usePets } from "@/hooks/usePets";
 import { 
     ChevronLeft, 
     ShieldCheck, 
@@ -20,19 +23,20 @@ import {
     CheckCircle2,
     Ban
 } from "lucide-react";
+import { Pet } from "@/app/generated/prisma/browser";
 
-interface CaretakerInfo {
+interface caregiver {
     name: string;
     location: string;
-    experience: string;
-    rating: number;
-    reviews: number;
-    price: number;
-    imageUrl: string;
-    isVerified: boolean;
-    petsHandled: string[];
-    about: string;
-    sizesHandled: string[];
+    // experience: string;
+    // rating: number;
+    // reviews: number;
+    dailyRate: number;
+    // imageUrl: string;
+    verified: boolean;
+    // petsHandled: string[];
+    biography: string;
+    // sizesHandled: string[];
 }
 
 const petIcons: Record<string, React.ReactNode> = {
@@ -44,18 +48,18 @@ const petIcons: Record<string, React.ReactNode> = {
     "fish": <Fish size={14} />
 }
 
-const dummyCaretaker: CaretakerInfo = {
+const dummycaregiver: caregiver = {
     name: "Sarah Chen",
     location: "Bukit Batok",
-    experience: "5+ years experience",
-    rating: 4.9,
-    reviews: 47,
-    price: 65,
-    isVerified: true,
-    petsHandled: ["dogs", "cats"],
-    sizesHandled: ["Small", "Medium", "Large"],
-    imageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
-    about: "Professional pet sitter with over 5 years of experience. I treat every pet like my own family member. Specialized in dogs and cats, with certifications in pet first aid."
+    // experience: "5+ years experience",
+    // rating: 4.9,
+    // reviews: 47,
+    dailyRate: 65,
+    verified: true,
+    // petsHandled: ["dogs", "cats"],
+    // sizesHandled: ["Small", "Medium", "Large"],
+    // imageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
+    biography: "Professional pet sitter with over 5 years of experience. I treat every pet like my own family member. Specialized in dogs and cats, with certifications in pet first aid."
 };
 
 // --- NEW DEMO CONTENT DATA ---
@@ -70,11 +74,37 @@ const serviceDetails = {
     amenities: ["Spacious Backyard", "Air-conditioned Room", "Nearby Pet Park", "24/7 Supervision"],
 };
 
-export default function CaretakerProfile() {
+export default function caregiverProfile() {
+    const params = useParams();
     const [activeTab, setActiveTab] = useState("About");
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-    const caretaker = dummyCaretaker;
+    const caregiverId = params.id as string;
+    const [caregiver, setCaregiver] = useState<caregiver | null>(null);
+    const [loading, setLoading] = useState(true);
+    const { fetchPets } = usePets();
+    const [pets, setPets] = useState<Pet[]>([]);
+    
+    const { fetchCaregiver } = useUsers();
+    const loadCaregiver = useCallback(async () => {
+    if (!caregiverId) return;
+    setLoading(true);
+    try {
+        const data = await fetchCaregiver(caregiverId);
+        const petsData = await fetchPets();
+        setPets(petsData);
+        setCaregiver(data.caregiver);
+    } catch (error) {
+        console.error('Failed to load caregiver:', error);
+    } finally {
+        setLoading(false);
+    }
+    }, [caregiverId, fetchCaregiver]);
 
+    useEffect(() => {
+    loadCaregiver();
+    }, []);
+  if (loading) return <div className="p-10">Loading profile...</div>;
+  if (!caregiver) return <div className="p-10">Caregiver not found</div>;
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-20">
             <Navbar />
@@ -88,32 +118,32 @@ export default function CaretakerProfile() {
 
                     <div className="flex flex-col md:flex-row gap-8 items-start justify-between">
                         <div className="flex gap-6 items-center">
-                            <img src={caretaker.imageUrl} alt={caretaker.name} className="w-32 h-32 bg-white rounded-3xl object-cover border-4 border-white/20 shadow-xl" />
+                            {/* <img src={caregiver?.imageUrl} alt={caregiver?.name} className="w-32 h-32 bg-white rounded-3xl object-cover border-4 border-white/20 shadow-xl" /> */}
                             <div className="text-white">
                                 <div className="flex items-center gap-3 mb-2">
-                                    <h1 className="text-3xl font-black tracking-tight">{caretaker.name}</h1>
+                                    <h1 className="text-3xl font-black tracking-tight">{caregiver?.name}</h1>
                                     <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg flex items-center gap-1.5 border border-white/10">
                                         <ShieldCheck size={12} strokeWidth={3} /> Verified
                                     </span>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-y-2 gap-x-5 text-sm text-teal-50 mb-5 font-medium">
-                                    <span className="flex items-center gap-1.5"><MapPin size={16} /> {caretaker.location}</span>
-                                    <span className="flex items-center gap-1.5"><Clock size={16} /> {caretaker.experience}</span>
-                                    <span className="flex items-center gap-1.5 font-bold text-amber-300"><Star size={16} fill="currentColor" /> {caretaker.rating} ({caretaker.reviews})</span>
+                                    <span className="flex items-center gap-1.5"><MapPin size={16} /> {caregiver?.location}</span>
+                                    {/* <span className="flex items-center gap-1.5"><Clock size={16} /> {caregiver?.experience}</span> */}
+                                    {/* <span className="flex items-center gap-1.5 font-bold text-amber-300"><Star size={16} fill="currentColor" /> {caregiver?.rating} ({caregiver?.reviews})</span> */}
                                 </div>
                                 <div className="flex gap-2">
-                                    {caretaker.petsHandled.map(pet => (
+                                    {/* {caregiver?.petsHandled.map(pet => (
                                         <span key={pet} className="bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
                                             {petIcons[pet.toLowerCase()]} {pet}
                                         </span>
-                                    ))}
+                                    ))} */}
                                 </div>
                             </div>
                         </div>
 
                         <div className="bg-white/10 backdrop-blur-md p-8 rounded-3xl w-full md:w-80 shadow-2xl shadow-teal-900/20 mt-4 md:mt-0 border border-white/20">
                             <div className="text-center mb-6">
-                                <div className="text-4xl font-black text-white">${caretaker.price}</div>
+                                <div className="text-4xl font-black text-white">${caregiver?.dailyRate}</div>
                                 <div className="text-teal-100 text-xs font-bold uppercase tracking-widest mt-1">per day</div>
                             </div>
                             <div className="flex flex-col gap-3">
@@ -140,7 +170,7 @@ export default function CaretakerProfile() {
                 <div className="flex gap-2 mb-8 overflow-x-auto pb-2 no-scrollbar">
                     {['About', 'Reviews', 'Services'].map(tab => (
                         <button key={tab} onClick={() => setActiveTab(tab)} className={`px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border shadow-sm shrink-0 ${activeTab === tab ? 'bg-white text-teal-600 border-teal-100 ring-2 ring-teal-500/5' : 'bg-slate-100/50 text-slate-400 hover:bg-slate-100 border-transparent'}`}>
-                            {tab === 'Reviews' ? `Reviews (${caretaker.reviews})` : tab}
+                            {/* {tab === 'Reviews' ? `Reviews (${caregiver?.reviews})` : tab} */}
                         </button>
                     ))}
                 </div>
@@ -151,14 +181,14 @@ export default function CaretakerProfile() {
                         <div className="space-y-6 animate-in fade-in duration-300">
                             <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
                                 <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Biography</h2>
-                                <p className="text-slate-600 leading-relaxed font-medium">{caretaker.about}</p>
+                                <p className="text-slate-600 leading-relaxed font-medium">{caregiver?.biography}</p>
                             </div>
                             <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
                                 <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Dog Sizes Handled</h2>
                                 <div className="flex flex-wrap gap-3">
-                                    {caretaker.sizesHandled.map(size => (
+                                    {/* {caregiver?.sizesHandled.map(size => (
                                         <span key={size} className="px-5 py-2.5 bg-slate-50 text-slate-700 rounded-2xl text-sm font-bold border border-slate-100 transition-colors">{size}</span>
-                                    ))}
+                                    ))} */}
                                 </div>
                             </div>
                         </div>
@@ -213,8 +243,8 @@ export default function CaretakerProfile() {
             </div>
 
             {/* MODALS */}
-            {isBookingModalOpen && (
-                <BookingModal caretakerName={caretaker.name} onClose={() => setIsBookingModalOpen(false)} />
+            {isBookingModalOpen && caregiver &&(
+                <BookingModal caregiverName={caregiver.name} caregiverId={caregiverId} pets={pets} onClose={() => setIsBookingModalOpen(false)} />
             )}
         </div>
     );

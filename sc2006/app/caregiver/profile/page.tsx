@@ -1,7 +1,8 @@
 "use client"
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "../../components/Navbar";
 import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   User, 
   ShieldCheck, 
@@ -15,11 +16,36 @@ import {
   ChevronLeft
 } from "lucide-react";
 
+const initialUser = {
+    initials: "",
+    email: "",
+    name: "",
+    phone: "",
+    location: "",
+    biography: "",
+    dailyRate: 0,
+};
+
 export default function CaretakerProfile() {
     const [activeTab, setActiveTab] = useState("About");
     
     const reviews = []; 
-
+    const { user, loading } = useAuth();
+        const [profileData, setProfileData] = useState(initialUser);
+        useEffect(() => {
+        if (user && !loading) {
+            setProfileData({
+            initials: user.name?.[0] || '',
+            email: user.email || '',
+            name: user.name || '',
+            phone: user.phone || '',
+            location: user.location || '',
+            biography: user.biography || '',
+            dailyRate: user.dailyRate || 0,
+            });
+        }
+        }, [user, loading]);
+    if (loading) return <div>Loading...</div>;
     return (
         <div className="min-h-screen bg-gray-50 font-sans pb-20">
             <Navbar />
@@ -27,7 +53,7 @@ export default function CaretakerProfile() {
             {/* HEADER */}
             <div className="bg-teal-500 pt-8 pb-12 px-6">
                 <div className="max-w-5xl mx-auto flex justify-between items-center mb-8">
-                    <Link href="/caregiver/console" className="text-teal-50 hover:text-white text-sm font-bold flex items-center gap-1 transition-colors">
+                    <Link href="/caregiver" className="text-teal-50 hover:text-white text-sm font-bold flex items-center gap-1 transition-colors">
                         <ChevronLeft size={16} /> Back to Console
                     </Link>
                     
@@ -46,7 +72,7 @@ export default function CaretakerProfile() {
                         </div>
                         <div className="text-white">
                             <div className="flex items-center gap-3 mb-2">
-                                <h1 className="text-3xl font-bold">Sarah Chen</h1>
+                                <h1 className="text-3xl font-bold">{profileData.name}</h1>
                                 <span className="bg-white/20 text-white text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest border border-white/10 flex items-center gap-1">
                                     <ShieldCheck size={12} strokeWidth={3} />
                                     <span className="leading-none pt-px">Verified Caregiver</span>
@@ -55,7 +81,7 @@ export default function CaretakerProfile() {
                             <div className="flex items-center gap-4 text-sm text-teal-50 mb-4">
                                 <span className="flex items-center gap-1">
                                     <MapPin size={14} className="text-teal-200" />
-                                    <span className="leading-none pt-px">Bukit Batok</span>
+                                    <span className="leading-none pt-px">{profileData.location || "Bukit Batok"}</span>
                                 </span>
                                 <span className="flex items-center gap-1">
                                     <Star size={14} className="text-yellow-300" fill="currentColor" />
@@ -78,7 +104,7 @@ export default function CaretakerProfile() {
                     {/* PRICING CARD */}
                     <div className="bg-white/10 backdrop-blur-md border border-white/10 p-6 rounded-2xl w-full md:w-72 shadow-xl">
                         <div className="text-center">
-                            <p className="text-3xl font-black text-white">$65</p>
+                            <p className="text-3xl font-black text-white">${profileData.dailyRate?.toFixed(2)}</p>
                             <p className="text-teal-100 text-xs font-medium">per day (Incl. platform fees)</p>
                         </div>
                     </div>
@@ -111,8 +137,7 @@ export default function CaretakerProfile() {
                         <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
                             <h3 className="font-bold text-slate-900 mb-4 tracking-tight">Professional Bio</h3>
                             <p className="text-sm text-slate-600 leading-relaxed">
-                                5+ years of experience in pet care. I specialize in senior dog care and 
-                                medical administration. Every pet in my home is treated like family.
+                                {user?.biography || "No biography available."}
                             </p>
                         </div>
                     )}

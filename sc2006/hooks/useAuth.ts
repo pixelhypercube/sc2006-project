@@ -10,6 +10,9 @@ interface User {
   role: 'OWNER' | 'CAREGIVER' | 'ADMIN';
   avatar?: string;
   verified: boolean;
+  location?: string;
+  biography?: string;
+  dailyRate?: number;
 }
 
 export function useAuth() {
@@ -21,12 +24,20 @@ export function useAuth() {
     fetchUser();
   }, []);
 
-  async function fetchUser() {
+  async function fetchUser(retry = true) {
     try {
       const res = await fetch('/api/auth/me');
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
+      } else if (res.status === 401 && retry) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          await fetchUser(false);
+        } else {
+          setUser(null);
+          // router.push('/');
+        }
       } else {
         setUser(null);
       }

@@ -5,7 +5,7 @@ import { verifyToken } from './app/lib/utils';
 // Public routes that don't need authentication
 const publicRoutes = [
   '/api/auth/login',
-  '/api/auth/register',
+  '/api/auth/register', 
   '/api/auth/refresh',
   '/api/auth/verify-email',
   '/api/auth/forgot-password',
@@ -26,12 +26,14 @@ const roleRoutes: Record<string, string[]> = {
   '/admin': ['ADMIN'],
   '/caregiver': ['CAREGIVER', 'ADMIN'],
   '/owner': ['PET_OWNER'],
+  '/api/pets': ['PET_OWNER', 'CAREGIVER', 'ADMIN'],
 };
 
-export async function proxy(request: NextRequest) {  // ← Make async!
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  console.log('pathname:', pathname);           // ← Add this
-  // Check if route is public
+  console.log('Proxy path:', pathname);
+  
+  // Check if route is public FIRST
   if (publicRoutes.some(route => pathname.startsWith(route))) {
     return NextResponse.next();
   }
@@ -40,26 +42,14 @@ export async function proxy(request: NextRequest) {  // ← Make async!
   const accessToken = request.cookies.get('access_token')?.value;
   const refreshToken = request.cookies.get('refresh_token')?.value;
   
-  // No access token - handle as before
-  if (!accessToken) {
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const loginUrl = new URL('/signin', request.url);
-    loginUrl.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
+  console.log('Access Token:', !!accessToken);
+  console.log('Refresh Token:', !!refreshToken);
   
-  // Verify access token
-  let payload;
-  try {
-    payload = verifyToken(accessToken, process.env.JWT_SECRET!);
-  } catch (error: any) {
-    // Token expired or invalid → Try refresh
-    if (refreshToken && (error.name === 'TokenExpiredError' || !payload)) {
+  // No access token → try refresh if refresh token exists
+  if (!accessToken) {
+    if (refreshToken) {
       try {
-        // Call your refresh endpoint
+        // ✅ Fix: Use FULL URL for internal fetch
         const origin = request.nextUrl.origin;
         const refreshResponse = await fetch(`${origin}/api/auth/refresh`, {
           method: 'POST',
@@ -72,18 +62,35 @@ export async function proxy(request: NextRequest) {  // ← Make async!
           // Refresh successful → Forward new cookies + continue
           const response = NextResponse.next();
           
-          // Copy refreshed cookies from refresh response
-          const newCookies = refreshResponse.headers.get('set-cookie');
-          if (newCookies) {
-            const cookiePairs = newCookies.split(',');
-            cookiePairs.forEach(cookie => {
-              const [name] = cookie.trim().split('=');
-              if (name === 'access_token' || name === 'refresh_token') {
-                response.cookies.set(name.trim(), '', { path: '/' });
+          // Forward cookies (your existing logic is perfect)
+          const setCookieHeaders = refreshResponse.headers.getSetCookie?.() || 
+                                   [refreshResponse.headers.get('set-cookie')].filter(Boolean);
+          
+          for (const cookieHeader of setCookieHeaders) {
+            if (cookieHeader) {
+              const [cookieValue] = cookieHeader.split(';');
+              const [name, value] = cookieValue.split('=');
+              
+              if (name && value) {
+                const options: any = {
+                  path: '/',
+                  httpOnly: cookieHeader.includes('HttpOnly'),
+                  secure: cookieHeader.includes('Secure'),
+                  sameSite: cookieHeader.includes('SameSite=Lax') ? 'lax' : 
+                           cookieHeader.includes('SameSite=Strict') ? 'strict' : 'lax',
+                };
+                
+                const maxAgeMatch = cookieHeader.match(/Max-Age=(\d+)/);
+                if (maxAgeMatch) {
+                  options.maxAge = parseInt(maxAgeMatch[1], 10);
+                }
+                
+                response.cookies.set(name.trim(), value, options);
               }
-            });
+            }
           }
           
+          console.log('Token refreshed successfully, cookies forwarded.');
           return response;
         }
       } catch (refreshError) {
@@ -91,7 +98,21 @@ export async function proxy(request: NextRequest) {  // ← Make async!
       }
     }
     
-    // Refresh failed or no refresh token → Clear and redirect
+    // No token or refresh failed → redirect to signin
+    const response = NextResponse.redirect(new URL('/signin', request.url));
+    response.cookies.delete('access_token');
+    response.cookies.delete('refresh_token');
+    response.cookies.delete('user');
+    return response;
+  }
+  
+  // ✅ Verify access token
+  let payload;
+  try {
+    payload = verifyToken(accessToken!, process.env.JWT_SECRET!);
+  } catch (error: any) {
+    console.error('Token verification failed:', error);
+    // Token invalid → clear cookies and redirect
     const response = NextResponse.redirect(new URL('/signin', request.url));
     response.cookies.delete('access_token');
     response.cookies.delete('refresh_token');
@@ -107,7 +128,7 @@ export async function proxy(request: NextRequest) {  // ← Make async!
     return response;
   }
   
-  // Check role-based access (unchanged)
+  // Check role-based access
   for (const [route, allowedRoles] of Object.entries(roleRoutes)) {
     if (pathname.startsWith(route)) {
       if (!allowedRoles.includes(payload.role)) {
@@ -130,16 +151,7 @@ export async function proxy(request: NextRequest) {  // ← Make async!
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|api/auth|/).*)',
-    '/owner/:path*',
-    '/caregiver/:path*'
-  ],
-};
+  '/((?!_next/static|_next/image|favicon.ico|api/auth/).*)',  // ✅ No trailing |/.
+]
 
+};

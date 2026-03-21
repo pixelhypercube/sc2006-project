@@ -26,7 +26,7 @@ export function verifyToken(token: string, secret: string) {
 
 // Generate JWT token
 export function generateTokens(userId: string, email: string, role: string, rememberMe: boolean = false) {
-  // Access token - short lived (15 min)
+  // Access token - short lived (30 min)
   const accessToken = jwt.sign(
     { 
       userId, 
@@ -35,7 +35,7 @@ export function generateTokens(userId: string, email: string, role: string, reme
       type: 'access' 
     },
     process.env.JWT_SECRET!,
-    { expiresIn: '15m' }
+    { expiresIn: '30m' }
   );
   
   // Refresh token - long lived

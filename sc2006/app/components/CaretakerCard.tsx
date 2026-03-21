@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 interface CaretakerCardProps {
+    id: string
     name: string;
     location: string;
     experience: string;
@@ -35,6 +36,7 @@ const petIcons: Record<string, React.ReactNode> = {
 }
 
 export default function CaretakerCard({
+    id,
     name,
     location,
     experience,
@@ -118,7 +120,7 @@ export default function CaretakerCard({
                         <span className="text-xs font-black text-slate-400 uppercase tracking-widest">/day</span>
                     </div>
                     <Link 
-                        href="/owner/caretaker_profile" 
+                        href={`/owner/caretaker_profile/${id}`} 
                         className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest py-4 px-8 rounded-2xl transition-all shadow-xl active:scale-95"
                     >
                         View Profile

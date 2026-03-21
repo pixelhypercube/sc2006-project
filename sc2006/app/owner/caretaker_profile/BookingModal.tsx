@@ -1,26 +1,37 @@
 "use client"
 import { useRef, useState } from "react";
 import { Receipt, ShieldCheck, ArrowRight, ChevronLeft } from "lucide-react";
+import { Pet } from "@/app/generated/prisma/browser";
+import { useBooking } from "@/hooks/useBooking";
 
 interface BookingModalProps {
-    caretakerName: string;
+    caregiverName: string;
+    caregiverId: string;
+    pets: Pet[];
     onClose: () => void;
 }
 
-export default function BookingModal({ caretakerName, onClose }: BookingModalProps) {
+export default function BookingModal({ caregiverName, caregiverId, pets, onClose }: BookingModalProps) {
     // --- STATE MANAGEMENT ---
-    const [step, setStep] = useState<1 | 2>(1); // Controls which screen is shown
-    
+    const [step, setStep] = useState<1 | 2>(1);
+    const { createBooking, loading } = useBooking();
+    const [errorMsg, setErrorMsg] = useState("");
+    const [successMsg, setSuccessMsg] = useState("");
+
     // Step 1 Form State
     const [selectedPet, setSelectedPet] = useState("");
     const [serviceType, setServiceType] = useState("In-Home Care");
     const [specialInstructions, setSpecialInstructions] = useState("");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
 
-    // Step 2 Math State (Mocked for Demo)
+    // Step 2 Math State
     const dailyRate = 65;
-    const days = 3; // In a real app, calculate this from the date picker
+    const days = startDate && endDate
+        ? Math.max(1, Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)))
+        : 1;
     const subtotal = dailyRate * days;
-    const platformFee = subtotal * 0.05; // 5% fee
+    const platformFee = subtotal * 0.05;
     const total = subtotal + platformFee;
 
     // Overlay click handler
@@ -39,7 +50,7 @@ export default function BookingModal({ caretakerName, onClose }: BookingModalPro
                     {/* HEADER */}
                     <div className="flex justify-between items-center p-6 border-b border-slate-100">
                         <div>
-                            <h3 className="font-black text-xl text-slate-900 tracking-tight">Book {caretakerName}</h3>
+                            <h3 className="font-black text-xl text-slate-900 tracking-tight">Book {caregiverName}</h3>
                         </div>
                         <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors rounded-full p-2 hover:bg-slate-50">
                             ✕
@@ -59,8 +70,11 @@ export default function BookingModal({ caretakerName, onClose }: BookingModalPro
                                 className="w-full border border-slate-200 rounded-2xl p-4 text-sm font-medium text-slate-700 bg-slate-50 focus:ring-2 focus:ring-teal-500 focus:border-transparent focus:bg-white outline-none appearance-none transition-all"
                             >
                                 <option value="" disabled>Choose a pet</option>
-                                <option value="dawg">Dawg (Dog)</option>
-                                <option value="mittens">Mittens (Cat)</option>
+                                {pets.map((pet) => (
+                                    <option key={pet.id} value={pet.id}>
+                                        {pet.name} ({pet.type})
+                                    </option>
+                                ))}
                             </select>
                         </div>
 
@@ -79,50 +93,31 @@ export default function BookingModal({ caretakerName, onClose }: BookingModalPro
                             </select>
                         </div>
 
-                        {/* YOUR DATE PICKER MOCKUP */}
-                        <div>
-                            <label className="text-xs font-black text-slate-900 uppercase tracking-widest block mb-2">
-                                Dates
-                            </label>
-                            <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50">
-                                <div className="flex justify-between items-center mb-4">
-                                    <button className="p-1 rounded hover:bg-slate-200 text-slate-500">⟨</button>
-                                    <span className="font-bold text-sm text-slate-800">February 2026</span>
-                                    <button className="p-1 rounded hover:bg-slate-200 text-slate-500">⟩</button>
-                                </div>
-                                <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-400 mb-2">
-                                    <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
-                                </div>
-                                <div className="grid grid-cols-7 gap-1 text-center text-sm">
-                                    <span className="py-1 text-slate-300">1</span>
-                                    <span className="py-1 text-slate-300">2</span>
-                                    <span className="py-1 text-slate-300">3</span>
-                                    <span className="py-1 text-slate-300">4</span>
-                                    <span className="py-1 text-slate-300">5</span>
-                                    <span className="py-1 text-slate-300">6</span>
-                                    <span className="py-1 text-slate-300">7</span>
-                                    <span className="py-1 text-slate-300">8</span>
-                                    <span className="py-1 text-slate-300">9</span>
-                                    <span className="py-1 text-slate-300">10</span>
-                                    <span className="py-1 text-slate-300">11</span>
-                                    <span className="py-1 text-slate-300">12</span>
-                                    <span className="py-1 text-slate-300">13</span>
-                                    <span className="py-1 text-slate-300">14</span>
-                                    <span className="py-1 text-slate-300">15</span>
-                                    <span className="py-1 font-bold bg-teal-100 text-teal-700 rounded-lg">16</span>
-                                    <span className="py-1 font-bold bg-teal-50 text-teal-700 rounded-lg">17</span>
-                                    <span className="py-1 font-bold bg-teal-50 text-teal-700 rounded-lg">18</span>
-                                    <span className="py-1 font-bold bg-teal-100 text-teal-700 rounded-lg">19</span>
-                                    <span className="py-1 font-bold text-slate-800">20</span>
-                                    <span className="py-1 font-bold text-slate-800">21</span>
-                                    <span className="py-1 font-bold text-slate-800">22</span>
-                                    <span className="py-1 font-bold text-slate-800">23</span>
-                                    <span className="py-1 font-bold text-slate-800">24</span>
-                                    <span className="py-1 font-bold text-slate-800">25</span>
-                                    <span className="py-1 font-bold text-slate-800">26</span>
-                                    <span className="py-1 font-bold text-slate-800">27</span>
-                                    <span className="py-1 font-bold text-slate-800">28</span>
-                                </div>
+                        {/* DATE PICKERS */}
+                        <div className="flex gap-4">
+                            <div className="flex-1">
+                                <label className="text-xs font-black text-slate-900 uppercase tracking-widest block mb-2">
+                                    Start Date <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    min={new Date().toISOString().split("T")[0]}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    className="w-full border border-slate-200 rounded-2xl p-4 text-sm font-medium text-slate-700 bg-slate-50 focus:ring-2 focus:ring-teal-500 focus:border-transparent focus:bg-white outline-none transition-all"
+                                />
+                            </div>
+                            <div className="flex-1">
+                                <label className="text-xs font-black text-slate-900 uppercase tracking-widest block mb-2">
+                                    End Date <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="date"
+                                    value={endDate}
+                                    min={startDate || new Date().toISOString().split("T")[0]}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    className="w-full border border-slate-200 rounded-2xl p-4 text-sm font-medium text-slate-700 bg-slate-50 focus:ring-2 focus:ring-teal-500 focus:border-transparent focus:bg-white outline-none transition-all"
+                                />
                             </div>
                         </div>
 
@@ -148,9 +143,9 @@ export default function BookingModal({ caretakerName, onClose }: BookingModalPro
                         >
                             Cancel
                         </button>
-                        <button 
+                        <button
                             onClick={() => setStep(2)}
-                            disabled={!selectedPet} // Requires pet selection to proceed
+                            disabled={!selectedPet || !startDate || !endDate}
                             className="flex-1 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest bg-teal-600 text-white hover:bg-teal-700 transition-colors shadow-lg shadow-teal-600/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                         >
                             Continue to Invoice
@@ -178,7 +173,7 @@ export default function BookingModal({ caretakerName, onClose }: BookingModalPro
                         <div className="bg-slate-50 rounded-2xl border border-slate-100 p-6 mb-8">
                             <div className="flex justify-between items-center pb-4 border-b border-slate-200 mb-4">
                                 <span className="text-sm font-bold text-slate-500">Caregiver</span>
-                                <span className="text-sm font-black text-slate-900">{caretakerName}</span>
+                                <span className="text-sm font-black text-slate-900">{caregiverName}</span>
                             </div>
                             <div className="flex justify-between items-center pb-4 border-b border-slate-200 mb-4">
                                 <span className="text-sm font-bold text-slate-500">Duration</span>
@@ -209,17 +204,41 @@ export default function BookingModal({ caretakerName, onClose }: BookingModalPro
                             <button onClick={onClose} className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors">
                                 Cancel
                             </button>
-                            <button 
-                                onClick={() => { 
-                                    // TODO: HANDLE API POST REQUEST HERE
-                                    alert("Request Sent to " + caretakerName + "!"); 
-                                    onClose(); 
+                            <button
+                                onClick={async () => {
+                                    setErrorMsg("");
+                                    setSuccessMsg("");
+                                    const result = await createBooking({
+                                        caregiverId,
+                                        petId: selectedPet,
+                                        startDate,
+                                        endDate,
+                                        specialInstructions: specialInstructions || undefined,
+                                        totalPrice: total,
+                                    });
+                                    if (result) {
+                                        setSuccessMsg("Booking request sent successfully!");
+                                        setTimeout(() => onClose(), 1500);
+                                    } else {
+                                        setErrorMsg("Caregiver is unavailable during the requested dates.");
+                                    }
                                 }}
-                                className="flex-1 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest py-4 transition-all shadow-xl shadow-teal-600/20 active:scale-95 flex justify-center items-center gap-2"
+                                disabled={loading}
+                                className="flex-1 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest py-4 transition-all shadow-xl shadow-teal-600/20 active:scale-95 flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                Send Request <ArrowRight size={16} />
+                                {loading ? "Sending..." : <> Send Request <ArrowRight size={16} /> </>}
                             </button>
                         </div>
+                        {errorMsg && (
+                            <div className="mt-2 p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg animate-pulse">
+                                {errorMsg}
+                            </div>
+                        )}
+                        {successMsg && (
+                            <div className="mt-2 p-3 bg-green-50 border border-green-100 text-green-600 text-sm rounded-lg animate-pulse">
+                                {successMsg}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

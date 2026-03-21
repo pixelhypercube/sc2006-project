@@ -27,6 +27,11 @@ const initialUser = {
 export default function OwnerProfile() {
     const { user, loading } = useAuth();
     const [profileData, setProfileData] = useState(initialUser);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState("personal");
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
     
     useEffect(() => {
     if (user && !loading) {
@@ -37,19 +42,15 @@ export default function OwnerProfile() {
         phone: user.phone || ''
         });
     }
-    }, [user]);
+    }, [user, loading]);
 
-    
-    
     const dataUser = {
         initials: user?.name?.[0],
         email: user?.email,
         name: user?.name,
         phone: user?.phone
     };
-    const [activeTab, setActiveTab] = useState("personal");
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isEditing, setIsEditing] = useState(false);
+    
     
     // State to manage form data
     //const [profileData, setProfileData] = useState(dataUser);
@@ -66,9 +67,43 @@ export default function OwnerProfile() {
         }
     ]); 
 
-    const handleSave = () => {
-        // Here is where you would call your API TINGY
+    const handleSave = async () => {
+        try {
+        setSaving(true);
+        setError(null);
+
+        const res = await fetch('/api/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // to send cookies
+            body: JSON.stringify({
+            name: profileData.name,
+            phone: profileData.phone,
+            }),
+        });
+
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || 'Failed to update profile');
+        }
+
+        const data = await res.json();
+
+        // Update local state with server-confirmed values
+        setProfileData(prev => ({
+            ...prev,
+            initials: data.user.name?.[0] || '',
+            name: data.user.name || '',
+            phone: data.user.phone || '',
+        }));
+
         setIsEditing(false);
+        } catch (err: any) {
+        console.error(err);
+        setError(err.message || 'Something went wrong');
+        } finally {
+        setSaving(false);
+        }
     };
     if (loading) return <div>Loading...</div>;
     return (

@@ -13,7 +13,7 @@ export default function Logout() {
 
         // TODO: work on API
         const timer = setTimeout(() => {
-            router.push('/');
+            router.push('/signin');
         }, 1500);
 
         return () => clearTimeout(timer); // cleanup timer on unmount

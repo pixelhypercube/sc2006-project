@@ -1,7 +1,8 @@
 "use client"
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "../../../components/Navbar";
 import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   ChevronLeft, 
   Save, 
@@ -19,13 +20,72 @@ import {
 
 export default function EditCaregiverProfile() {
     const [isSaving, setIsSaving] = useState(false);
+    const { user, loading } = useAuth();
+    const [profileData, setProfileData] = useState({
+        email: "",
+        name: "",
+        phone: "",
+        location: "",
+        biography: "",
+        dailyRate: 0,
+    });
 
-    const handleSave = () => {
+    useEffect(() => {
+        if (user && !loading) {
+            setProfileData({
+                email: user.email || '',
+                name: user.name || '',
+                phone: user.phone || '',
+                location: user.location || '',
+                biography: user.biography || '',
+                dailyRate: user.dailyRate || 0,
+            });
+        }
+    }, [user, loading]);
+
+
+    const handleSave = async() => {
+        try {
         setIsSaving(true);
+
+        const res = await fetch('/api/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // to send cookies
+            body: JSON.stringify({
+            name: profileData.name,
+            phone: profileData.phone,
+            biography: profileData.biography,
+            location: profileData.location,
+            dailyRate: profileData.dailyRate,
+            }),
+        });
+
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || 'Failed to update profile');
+        }
+
+        const data = await res.json();
+
+        // Update local state with server-confirmed values
+        setProfileData(prev => ({
+            ...prev,
+            initials: data.user.name?.[0] || '',
+            name: data.user.name || '',
+            phone: data.user.phone || '',
+        }));
+
+        } catch (err: any) {
+        console.error(err);
+        } finally {
+        setIsSaving(false);
+        }
 
         //TODO: do the API tingy
         setTimeout(() => setIsSaving(false), 2000);
     };
+    if (loading) return <div>Loading...</div>;
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-20">
@@ -70,14 +130,14 @@ export default function EditCaregiverProfile() {
                                 <div className="flex-1 space-y-4">
                                     <div>
                                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Display Name</label>
-                                        <input type="text" defaultValue="Sarah Chen" className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/10 focus:border-teal-600 transition-all font-medium" />
+                                        <input type="text" value={profileData.name} onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/10 focus:border-teal-600 transition-all font-medium" />
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Service Location</label>
                                             <div className="relative">
                                                 <MapPin size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                                                <input type="text" defaultValue="Bukit Batok" className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:border-teal-600 font-medium" />
+                                                <input type="text" value={profileData.location} onChange={(e) => setProfileData(prev => ({ ...prev, location: e.target.value }))} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:border-teal-600 font-medium" />
                                             </div>
                                         </div>
                                         <div>
@@ -97,7 +157,8 @@ export default function EditCaregiverProfile() {
                                     rows={5} 
                                     className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:outline-none focus:border-teal-600 transition-all resize-none leading-relaxed"
                                     placeholder="Tell owners about your experience, certifications, and how you care for pets..."
-                                    defaultValue="Professional pet sitter with over 5 years of experience. I treat every pet like my own family member. Specialized in dogs and cats, with certifications in pet first aid."
+                                    value={profileData.biography}
+                                    onChange={(e) => setProfileData(prev => ({ ...prev, biography: e.target.value }))}
                                 />
                                 <p className="text-sm text-slate-400 mt-2 flex items-center gap-1 italic">
                                     <Info size={12} /> This bio is visible to all pet owners during their search.
@@ -159,7 +220,8 @@ export default function EditCaregiverProfile() {
                                         <DollarSign size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-teal-500" />
                                         <input 
                                             type="number" 
-                                            defaultValue="65" 
+                                            value={profileData.dailyRate}
+                                            onChange={(e) => setProfileData(prev => ({ ...prev, hourlyRate: parseFloat(e.target.value) || 0 }))}
                                             className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-2xl font-black focus:outline-none focus:border-teal-500 transition-all"
                                         />
                                     </div>

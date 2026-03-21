@@ -35,6 +35,8 @@ export async function GET() {
         name: true,
         role: true,
         phone: true,
+        biography: true,
+        dailyRate: true,
         location: true,
         avatar: true,
         verified: true,

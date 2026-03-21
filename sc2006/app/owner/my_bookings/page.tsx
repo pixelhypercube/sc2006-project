@@ -1,7 +1,9 @@
 "use client"
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "../../components/Navbar";
 import Link from "next/link";
+import { useBooking } from "@/hooks/useBooking";
+import { useAuth } from "@/hooks/useAuth";
 import ReviewModal from "./ReviewModal"; // Import the new modal here
 import { 
     Clock, 
@@ -14,45 +16,78 @@ import {
     CheckCircle
 } from "lucide-react";
 
-// DUMMY DATA - Added a "past" booking to test the review engine
-const dummyBookings = [
-    {
-        id: 1,
-        petName: "Dawg",
-        caretakerName: "Sarah Chen",
-        dates: "Feb 16 - Feb 19, 2026",
-        location: "In Home",
-        price: 260,
-        status: "Active", 
-        type: "active"
-    },
-    {
-        id: 2,
-        petName: "Dawg",
-        caretakerName: "Jason Lim",
-        dates: "Mar 05 - Mar 07, 2026",
-        location: "Caretaker's Home",
-        price: 150,
-        status: "Confirmed",
-        type: "active"
-    },
-    {
-        id: 3,
-        petName: "Dawg",
-        caretakerName: "Lisa Wong",
-        dates: "Jan 10 - Jan 12, 2026",
-        location: "Caretaker's Home",
-        price: 225,
-        status: "Completed",
-        type: "past"
-    }
-];
+// // DUMMY DATA - Added a "past" booking to test the review engine
+// const dummyBookings = [
+//     {
+//         id: 1,
+//         petName: "Dawg",
+//         caretakerName: "Sarah Chen",
+//         dates: "Feb 16 - Feb 19, 2026",
+//         location: "In Home",
+//         price: 260,
+//         status: "Active", 
+//         type: "active"
+//     },
+//     {
+//         id: 2,
+//         petName: "Dawg",
+//         caretakerName: "Jason Lim",
+//         dates: "Mar 05 - Mar 07, 2026",
+//         location: "Caretaker's Home",
+//         price: 150,
+//         status: "Confirmed",
+//         type: "active"
+//     },
+//     {
+//         id: 3,
+//         petName: "Dawg",
+//         caretakerName: "Lisa Wong",
+//         dates: "Jan 10 - Jan 12, 2026",
+//         location: "Caretaker's Home",
+//         price: 225,
+//         status: "Completed",
+//         type: "past"
+//     }
+// ];
 
 export default function Bookings() {
     const [activeTab, setActiveTab] = useState("active");
     const [reviewCaregiver, setReviewCaregiver] = useState<string | null>(null);
-    
-    const filteredBookings = dummyBookings.filter(b => b.type === activeTab);
+    const [bookings, setBookings] = useState<any[]>([]);
+    const { user } = useAuth();
+    const { fetchBooking, loading, error } = useBooking();
+    useEffect(() => {
+        if (user?.id) {
+            loadBookings();
+        }}, [user]);
+
+    const loadBookings = async () => {
+        if (!user?.id) return;
+        const data = await fetchBooking({ownerId: user.id});
+        console.log("Fetched Bookings:", data);
+
+        // Map fetched data to expected format
+        const mappedBookings = (data || []).map((b: any) => ({
+            id: b.id,
+            petName: b.pet?.name ?? 'Unknown Pet',
+            caregiverName: b.caregiver?.name ?? 'Unknown Caregiver',
+            dates: `${new Date(b.startDate).toLocaleDateString()} - ${new Date(b.endDate).toLocaleDateString()}`,
+            location: 'In Home', // Default location
+            price: b.totalPrice ?? 0,
+            status: b.status,
+        }));
+
+        setBookings(mappedBookings);
+    };
+
+    const filteredBookings = bookings.filter(b => {
+        if (activeTab === "active") {
+            return ["PENDING", "ACTIVE", "CONFIRMED","IN_PROGRESS"].includes(b.status);
+        } else {
+            return ["COMPLETED", "CANCELLED", "DECLINED"].includes(b.status);
+        }
+    });
+    console.log("Filtered Bookings:", filteredBookings);
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-20">
@@ -68,19 +103,23 @@ export default function Bookings() {
 
                 {/* TAB SWITCHER */}
                 <div className="flex gap-2 mb-10 bg-slate-200/50 p-1.5 rounded-xl w-fit border border-slate-200/50">
-                    {["active", "past"].map((tab) => (
-                        <button 
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`px-8 py-2.5 rounded-lg text-sm font-black uppercase tracking-widest transition-all ${
-                                activeTab === tab 
-                                ? "bg-white shadow-sm text-slate-900" 
-                                : "text-slate-400 hover:text-slate-600"
-                            }`}
-                        >
-                            {tab} ({dummyBookings.filter(b => b.type === tab).length})
-                        </button>
-                    ))}
+                    {["active", "past"].map((tab) => {                                                                                    
+                         const count = tab === "active"                                                                                    
+                             ? bookings.filter(b => ["PENDING", "ACTIVE", "CONFIRMED", "IN_PROGRESS"].includes(b.status)).length                          
+                             : bookings.filter(b => ["COMPLETED", "CANCELLED", "DECLINED"].includes(b.status)).length;                                 
+                         return (                                                                                                          
+                             <button                                                                                                       
+                                 key={tab}                                                                                                 
+                                 onClick={() => setActiveTab(tab)}                                                                         
+                                 className={`px-8 py-2.5 rounded-lg text-sm font-black uppercase tracking-widest transition-all ${         
+                                     activeTab === tab                                                                                     
+                                     ? "bg-white shadow-sm text-slate-900"                                                                 
+                                     : "text-slate-400 hover:text-slate-600"                                                               
+                                 }`}>                                                                                                             
+                                {tab} ({count})                                                                                           
+                            </button>                                                                                                     
+                        );                                                                                                                
+                    })}
                 </div>
 
                 <div className="space-y-6">
@@ -103,7 +142,7 @@ export default function Bookings() {
                                             {booking.status === 'Active' ? 'Live Now' : booking.status}
                                         </span>
                                     </div>
-                                    <p className="text-slate-500 text-base font-medium">Care provided by <span className="text-slate-900 font-bold">{booking.caretakerName}</span></p>
+                                    <p className="text-slate-500 text-base font-medium">Care provided by <span className="text-slate-900 font-bold">{booking.caregiverName}</span></p>
                                     
                                     <div className="flex flex-wrap gap-x-8 gap-y-3 mt-4 text-sm font-bold text-slate-600 bg-slate-50 w-fit px-5 py-3 rounded-2xl border border-slate-100">
                                         <div className="flex items-center gap-2">

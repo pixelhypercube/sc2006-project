@@ -105,15 +105,15 @@ export async function POST(request: Request) {
             });
         
             // If user is a caregiver, create empty caregiver profile
-            if (validatedData.role === 'CAREGIVER') {
-                await tx.caregiverProfile.create({
-                data: {
-                    userId: user.id,
-                    dailyRate: 0, // Default, will be updated later
-                    petPreferences: [],
-                }
-                });
-            }
+            // if (validatedData.role === 'CAREGIVER') {
+            //     await tx.caregiverProfile.create({
+            //     data: {
+            //         userId: user.id,
+            //         dailyRate: 0, // Default, will be updated later
+            //         petPreferences: [],
+            //     }
+            //     });
+            // }
             
             // Create welcome notification
             await tx.notification.create({

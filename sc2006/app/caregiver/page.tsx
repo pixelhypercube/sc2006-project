@@ -1,48 +1,72 @@
 "use client"
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from 'next/navigation';
 import Navbar from "../components/Navbar";
 import Link from "next/link";
-import { 
-    Dog, 
-    Video, 
-    ArrowRight, 
-    Lock, 
-    Receipt, 
-    MessageCircle, 
-    ClipboardList,
-    AlertCircle,
+import {
+    Dog,
+    Video,
+    Lock,
     ChevronRight
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useBooking } from "@/hooks/useBooking";
+import { Booking } from "@/app/generated/prisma/browser";
 
-// DUMMY DATA
-const activeJobs = [
-    {
-        id: 1,
-        petName: "Dawg",
-        ownerName: "Mr doob",
-        status: "Action Required",
-        requestType: "Video Check-In",
-        deadline: "Due in 2h",
-        payout: 247.00 // 95% after the 5% platform fee
-    },
-    {
-        id: 2,
-        petName: "Dawgy",
-        ownerName: "Josh Tan",
-        status: "On Track",
-        requestType: "Regular Care",
-        deadline: "Next check-in tomorrow",
-        payout: 114.00
-    }
-];
+type BookingWithRelations = Booking & {
+    owner: { id: string; name: string; avatar: string | null; email: string };
+    caregiver: { id: string; name: string; avatar: string | null; email: string };
+    payment: { id: string; status: string; amount: number } | null;
+    pet: { id: string; name: string; type: string; breed: string | null } | null;
+};
+
+const STATUS_STYLES: Record<string, string> = {
+    CONFIRMED: "bg-teal-50 text-teal-600 border border-teal-100",
+    IN_PROGRESS: "bg-blue-50 text-blue-600 border border-blue-100",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+    CONFIRMED: "Confirmed",
+    IN_PROGRESS: "In Progress",
+};
 
 export default function CaregiverDashboard() {
+    const router = useRouter();
+    const { user } = useAuth();
+    const { fetchBooking, loading } = useBooking();
+    const [bookings, setBookings] = useState<BookingWithRelations[]>([]);
+    const [pendingCount, setPendingCount] = useState(0);
+
+    async function openChat(ownerId: string, caregiverId: string) {
+        try {
+        const res = await fetch(`/api/chats?ownerId=${ownerId}&caregiverId=${caregiverId}`);
+        const data = await res.json();
+        if (data.bookingId) {
+            router.push(`/caregiver/messages?bookingId=${data.bookingId}`);
+        } else {
+            alert('Failed to open chat: ' + (data.error ?? 'Unknown error'));
+        }
+        } catch {
+        alert('Failed to open chat due to network error');
+        }
+    }
+    useEffect(() => {
+        if (!user) return;
+        fetchBooking({ caregiverId: user.id }).then((data) => {
+            const all = data as BookingWithRelations[];
+            setBookings(all.filter((b) => b.status === "CONFIRMED" || b.status === "IN_PROGRESS"));
+            setPendingCount(all.filter((b) => b.status === "PENDING").length);
+        });
+    }, [user]);
+
+    const totalEarnings = bookings.reduce((sum, b) => sum + b.totalPrice * 0.95, 0);
+
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-20">
             <Navbar />
 
             <main className="max-w-5xl mx-auto px-6 py-10">
-                {/* WELCOME & REVENUE (5% fee context) */}
+                {/* WELCOME & REVENUE */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
                     <div>
                         <h1 className="text-3xl font-bold text-slate-900">Caregiver Console</h1>
@@ -51,7 +75,7 @@ export default function CaregiverDashboard() {
                     <div className="bg-white p-4 px-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
                         <div className="text-right">
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Earnings</p>
-                            <p className="text-xl font-black text-teal-600">$361.00</p>
+                            <p className="text-xl font-black text-teal-600">${totalEarnings.toFixed(2)}</p>
                         </div>
                         <div className="h-8 w-px bg-slate-100"></div>
                         <p className="text-xs text-slate-400 max-w-20 leading-tight font-medium">
@@ -61,83 +85,79 @@ export default function CaregiverDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    
+
                     {/* LEFT: ACTIVE JOBS */}
                     <div className="lg:col-span-2 space-y-6">
                         <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                             Active Arrangements
-                            <span className="bg-teal-100 text-teal-600 text-xs px-2 py-0.5 rounded-full">{activeJobs.length}</span>
+                            <span className="bg-teal-100 text-teal-600 text-xs px-2 py-0.5 rounded-full">{bookings.length}</span>
                         </h2>
 
-                        {activeJobs.map((job) => (
-                            <div key={job.id} className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                        {loading && (
+                            <p className="text-slate-400 font-medium text-sm">Loading...</p>
+                        )}
+
+                        {!loading && bookings.length === 0 && (
+                            <div className="bg-white border border-slate-100 rounded-2xl p-10 text-center text-slate-400 font-medium text-sm">
+                                No active arrangements.
+                            </div>
+                        )}
+
+                        {bookings.map((booking) => (
+                            <div key={booking.id} className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
                                 <div className="flex justify-between items-start mb-6">
                                     <div className="flex gap-4">
-                                        <div className="w-12 h-12 bg-teal-50 rounded-xl flex items-center justify-center text-2xl">
+                                        <div className="w-12 h-12 bg-teal-50 rounded-xl flex items-center justify-center">
                                             <Dog size={28} className="text-teal-600" />
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-slate-900">{job.petName}</h3>
-                                            <p className="text-sm text-slate-500">Owner: {job.ownerName}</p>
+                                            <h3 className="font-bold text-slate-900">{booking.owner?.name ?? "Owner"}</h3>
+                                            <p className="text-sm text-slate-500">Pet: {booking.pet?.name ?? "—"}</p>
+                                            <p className="text-xs text-slate-400 mt-0.5">
+                                                {new Date(booking.startDate).toLocaleDateString("en-SG", { month: "short", day: "numeric" })} – {new Date(booking.endDate).toLocaleDateString("en-SG", { month: "short", day: "numeric", year: "numeric" })}
+                                            </p>
                                         </div>
                                     </div>
-                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${
-                                        job.status === 'Action Required' 
-                                        ? 'bg-red-50 text-red-600 border border-red-100 animate-pulse' 
-                                        : 'bg-slate-50 text-slate-500'
-                                    }`}>
-                                        {job.status}
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${STATUS_STYLES[booking.status] ?? "bg-slate-50 text-slate-500"}`}>
+                                        {STATUS_LABELS[booking.status] ?? booking.status}
                                     </span>
                                 </div>
 
-                                {job.status === "Action Required" && (
-                                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-6 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-xl">
-                                                <Video size={20} className="text-amber-900"/>
-                                            </span>
-                                            <div>
-                                                <p className="text-sm font-bold text-amber-900">Check-In Requested</p>
-                                                <p className="text-xs text-amber-700">{job.deadline}</p>
-                                            </div>
-                                        </div>
-                                        <Link 
-                                            href={`/caregiver/upload`}
-                                            className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors shadow-sm"
-                                        >
-                                            Upload Video
-                                        </Link>
-                                    </div>
-                                )}
-
                                 <div className="flex justify-between items-center pt-4 border-t border-slate-50">
-                                    <a href={"/caregiver/blueprint"} className="text-sm font-bold text-teal-600 hover:text-teal-700 transition-colors">View Blueprint</a>
-                                    <a href={"/caregiver/messages"} className="text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors">Open Chat</a>
+                                    <p className="text-sm font-bold text-teal-600">${(booking.totalPrice * 0.95).toFixed(2)} <span className="text-slate-400 font-medium text-xs">earnings</span></p>
+                                    <button
+    className="text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors"
+    onClick={() => openChat(booking.owner.id, booking.caregiver.id)}
+  >
+    Open Chat
+  </button>
                                 </div>
                             </div>
                         ))}
                     </div>
 
-                    {/* RIGHT: QUICK ACTIONS & ALERTS */}
+                    {/* RIGHT: QUICK ACTIONS */}
                     <div className="space-y-8">
                         <div>
                             <h2 className="text-lg font-bold text-slate-800 mb-6 text-center">Quick Actions</h2>
                             <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-3">
-                                
-                                <Link 
-                                    href="/caregiver/requests" 
+
+                                <Link
+                                    href="/caregiver/requests"
                                     className="w-full flex justify-between items-center p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors group"
                                 >
                                     <span className="text-sm font-bold text-slate-700">New Requests</span>
-                                    <span className="bg-teal-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">2</span>
+                                    {pendingCount > 0 && (
+                                        <span className="bg-teal-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{pendingCount}</span>
+                                    )}
                                 </Link>
-                                
-                                <Link 
-                                    href="/caregiver/transactions" 
+
+                                <Link
+                                    href="/caregiver/transactions"
                                     className="w-full flex justify-between items-center p-4 bg-white border border-transparent hover:border-slate-100 rounded-xl transition-colors group"
                                 >
                                     <span className="text-sm font-bold text-slate-500 group-hover:text-teal-600">Earnings & Fees</span>
-                                    <span className="text-gray-400 group-hover:text-teal-600"><ChevronRight/></span>
+                                    <ChevronRight size={16} className="text-slate-400 group-hover:text-teal-600"/>
                                 </Link>
 
                             </div>
