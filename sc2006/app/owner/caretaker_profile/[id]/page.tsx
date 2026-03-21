@@ -21,7 +21,29 @@ import {
     MessageCircle,
     Home,
     CheckCircle2,
-    Ban
+    Ban,
+    Footprints,
+    Info,
+    Briefcase,
+    Trash2,
+    PartyPopper,
+    Car,
+    Thermometer,
+    Hourglass,
+    HeartPulse,
+    Syringe,
+    Pill,
+    Trophy,
+    Brain,
+    Target,
+    GraduationCap,
+    Zap,
+    Sparkles,
+    Wind,
+    ShowerHead,
+    Sun,
+    Coffee,
+    Scissors
 } from "lucide-react";
 import { Pet } from "@/app/generated/prisma/browser";
 
@@ -66,13 +88,157 @@ const dummycaregiver: caregiver = {
 const demoReviews = [
     { id: 1, user: "James Tan", rating: 5, date: "Feb 12, 2026", text: "Sarah was incredible with my poodle! She sent video updates every evening and followed the behavioral blueprint perfectly. Highly recommended!" },
     { id: 2, user: "Emily Lim", rating: 5, date: "Jan 28, 2026", text: "Very professional and patient. My cat usually hides from strangers but was comfortable with Sarah within a day. Will book again." },
-    { id: 3, user: "Marcus Go", rating: 4, date: "Jan 15, 2026", text: "Great experience. Clear communication and very clean environment. My dog came back happy and well-fed." }
+    { id: 3, user: "Marcus Goh", rating: 4, date: "Jan 15, 2026", text: "Great experience. Clear communication and very clean environment. My dog came back happy and well-fed." }
 ];
 
-const serviceDetails = {
-    houseRules: ["No pets on the sofa", "Vaccination records required", "Must be tick/flea treated"],
-    amenities: ["Spacious Backyard", "Air-conditioned Room", "Nearby Pet Park", "24/7 Supervision"],
-};
+const serviceDetails = [
+    // 1. CORE BOARDING & CARE (TIMED)
+    {
+        name: "Pet Boarding",
+        category: "Core Care",
+        description: "Your pet stays overnight in my home and is treated like family.",
+        icon: <Home size={18} className="text-teal-500"/>
+    },
+    {
+        name: "House Sitting",
+        category: "Core Care",
+        description: "I'll stay overnight in your home to watch over your pets and property.",
+        icon: <CheckCircle2 size={18} className="text-teal-500"/>
+    },
+    {
+        name: "Drop-in Visits",
+        category: "Core Care",
+        description: "30 or 60-minute visits to feed, play, and give potty breaks.",
+        icon: <Coffee size={18} className="text-teal-500"/>
+    },
+    {
+        name: "Doggie Daycare",
+        category: "Core Care",
+        description: "Daytime care in my home, usually from 8 AM to 6 PM.",
+        icon: <Sun size={18} className="text-teal-500"/>
+    },
+    {
+        name: "Dog Walking",
+        category: "Core Care",
+        description: "A 30-60 minute personalized walk around the neighborhood.",
+        icon: <Footprints size={18} className="text-teal-500"/>
+    },
+
+    // 2. WELLNESS & MAINTENANCE (TASK-BASED)
+    {
+        name: "Bathing & Brushing",
+        category: "Wellness",
+        description: "A relaxing bath and thorough brushing to keep coats shiny.",
+        icon: <ShowerHead size={18} className="text-teal-500"/>
+    },
+    {
+        name: "Nail Trimming",
+        category: "Wellness",
+        description: "Safe and quick clipping or grinding of pet nails.",
+        icon: <Scissors size={18} className="text-teal-500"/>
+    },
+    {
+        name: "Ear Cleaning",
+        category: "Wellness",
+        description: "Gentle cleaning to prevent infections, especially for floppy ears.",
+        icon: <Wind size={18} className="text-teal-500"/>
+    },
+    {
+        name: "Teeth Brushing",
+        category: "Wellness",
+        description: "Daily dental hygiene to maintain fresh breath and healthy gums.",
+        icon: <Sparkles size={18} className="text-teal-500"/>
+    },
+    {
+        name: "De-shedding Treatment",
+        category: "Wellness",
+        description: "Heavy brushing and treatment to minimize shedding at home.",
+        icon: <Zap size={18} className="text-teal-500"/>
+    },
+
+    // 3. TRAINING & EDUCATION
+    {
+        name: "Puppy Training",
+        category: "Training",
+        description: "Early socialization and essential potty training foundations.",
+        icon: <GraduationCap size={18} className="text-teal-500"/>
+    },
+    {
+        name: "Obedience Training",
+        category: "Training",
+        description: "Mastering commands like sit, stay, heel, and recall.",
+        icon: <Target size={18} className="text-teal-500"/>
+    },
+    {
+        name: "Behavioral Consultation",
+        category: "Training",
+        description: "Addressing leash pulling, anxiety, or specific behavioral issues.",
+        icon: <Brain size={18} className="text-teal-500"/>
+    },
+    {
+        name: "Agility Training",
+        category: "Training",
+        description: "Guided exercise through tunnels, jumps, and weave poles.",
+        icon: <Trophy size={18} className="text-teal-500"/>
+    },
+
+    // 4. MEDICAL & SPECIALIZED CARE
+    {
+        name: "Oral Medication",
+        category: "Medical",
+        description: "Experienced administration of pills, tablets, or liquid medicine.",
+        icon: <Pill size={18} className="text-teal-500"/>
+    },
+    {
+        name: "Injection Administration",
+        category: "Medical",
+        description: "Safe administration of Insulin or other required injections.",
+        icon: <Syringe size={18} className="text-teal-500"/>
+    },
+    {
+        name: "Post-Surgery Recovery",
+        category: "Medical",
+        description: "Wound monitoring and ensuring restricted activity for healing.",
+        icon: <HeartPulse size={18} className="text-teal-500"/>
+    },
+    {
+        name: "Senior Pet Care",
+        category: "Medical",
+        description: "Extra patience and assistance for pets with mobility issues.",
+        icon: <Hourglass size={18} className="text-teal-500"/>
+    },
+    {
+        name: "Wound Care",
+        category: "Medical",
+        description: "Cleaning minor abrasions or changing bandages as instructed.",
+        icon: <Thermometer size={18} className="text-teal-500"/>
+    },
+
+    // 5. LOGISTICS & EXTRAS
+    {
+        name: "Pet Taxi",
+        category: "Logistics",
+        description: "Safe transport to the vet, groomers, or other appointments.",
+        icon: <Car size={18} className="text-teal-500"/>
+    },
+    {
+        name: "Wedding Attendant",
+        category: "Logistics",
+        description: "Helping your pet be part of your special day without the stress.",
+        icon: <PartyPopper size={18} className="text-teal-500"/>
+    },
+    {
+        name: "Tank & Cage Cleaning",
+        category: "Logistics",
+        description: "Cleaning and maintenance for fish, reptiles, or small mammals.",
+        icon: <Trash2 size={18} className="text-teal-500"/>
+    }
+];
+
+// const serviceDetails = {
+//     houseRules: ["No pets on the sofa", "Vaccination records required", "Must be tick/flea treated"],
+//     amenities: ["Spacious Backyard", "Air-conditioned Room", "Nearby Pet Park", "24/7 Supervision"],
+// };
 
 export default function caregiverProfile() {
     const params = useParams();
@@ -200,12 +366,26 @@ export default function caregiverProfile() {
                             {demoReviews.map(review => (
                                 <div key={review.id} className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
                                     <div className="flex justify-between items-start mb-4">
-                                        <div>
-                                            <h4 className="font-black text-slate-900">{review.user}</h4>
-                                            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{review.date}</p>
+                                        {/* User Info & Avatar */}
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center font-black text-sm border border-teal-100">
+                                                {review.user.charAt(0)} {/* Grabs the first letter of their name */}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-black text-slate-900 text-sm">{review.user}</h4>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{review.date}</p>
+                                            </div>
                                         </div>
+                                        {/* Stars */}
                                         <div className="flex gap-0.5 text-amber-400">
-                                            {[...Array(review.rating)].map((_, i) => <Star key={i} size={14} fill="currentColor" />)}
+                                            {[...Array(5)].map((_, i) => (
+                                                <Star 
+                                                    key={i} 
+                                                    size={14} 
+                                                    fill={i < review.rating ? "currentColor" : "none"} 
+                                                    className={i < review.rating ? "text-amber-400" : "text-slate-200"}
+                                                />
+                                            ))}
                                         </div>
                                     </div>
                                     <p className="text-slate-600 text-sm leading-relaxed font-medium">"{review.text}"</p>
@@ -215,7 +395,43 @@ export default function caregiverProfile() {
                     )}
 
                     {/* SERVICES TAB */}
+
                     {activeTab === 'Services' && (
+                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-4">
+                            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                                <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
+                                    {/* <Briefcase size={16} className="text-teal-500" />  */}
+                                    Services Offered
+                                </h2>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {serviceDetails.map((service) => (
+                                        <div 
+                                            key={service.name} 
+                                            className="group p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-teal-200 hover:bg-white hover:shadow-md transition-all duration-300 flex items-start gap-4"
+                                        >
+                                            <div className="p-3 bg-white rounded-xl shadow-sm group-hover:bg-teal-50 transition-colors">
+                                                {service.icon}
+                                            </div>
+                                            <div>
+                                                <h3 className="text-slate-900 font-black text-sm uppercase tracking-wide mb-1">
+                                                    {service.name}
+                                                </h3>
+                                                <p className="text-slate-500 text-xs leading-relaxed font-medium">
+                                                    {service.description}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <p className="text-center text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-8 flex items-center justify-center gap-2">
+                                    <Info size={12} /> Prices for these services are customizable during booking
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    {/* {activeTab === 'Services' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in duration-300">
                             <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
                                 <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2"><Home size={16} className="text-teal-500" /> Amenities</h2>
@@ -238,7 +454,7 @@ export default function caregiverProfile() {
                                 </div>
                             </div>
                         </div>
-                    )}
+                    )} */}
                 </div>
             </div>
 

@@ -5,7 +5,7 @@ import Navbar from "../components/Navbar";
 import PetCategoryButton from "./PetCategoryButton";
 import DatePickerModal from "./DatePickerModal";
 import FiltersModal from "./FiltersModal";
-// Standardizing icons for the Pet Matchmaking Engine (UC2)
+
 import { 
   Dog, 
   Cat, 
@@ -17,22 +17,24 @@ import {
   SlidersHorizontal 
 } from "lucide-react";
 
+const ICON_SIZE = 32;
+
 const petCategories = [
-    { name: 'Dogs', icon: <Dog size={24} />, borderColor: 'border-orange-200', bgColor: 'bg-orange-50/50', iconColor: 'text-orange-500' },
-    { name: 'Cats', icon: <Cat size={24} />, borderColor: 'border-purple-200', bgColor: 'bg-purple-50/50', iconColor: 'text-purple-500' },
-    { name: 'Birds', icon: <Bird size={24} />, borderColor: 'border-blue-200', bgColor: 'bg-blue-50/50', iconColor: 'text-blue-500' },
-    { name: 'Reptiles', icon: <Turtle size={24} />, borderColor: 'border-green-200', bgColor: 'bg-green-50/50', iconColor: 'text-green-500' },
-    { name: 'Small Mammals', icon: <Rabbit size={24} />, borderColor: 'border-rose-200', bgColor: 'bg-rose-50/50', iconColor: 'text-rose-500' },
-    { name: 'Fish', icon: <Fish size={24} />, borderColor: 'border-cyan-200', bgColor: 'bg-cyan-50/50', iconColor: 'text-cyan-500' },
+    { name: 'Dogs', icon: <Dog size={ICON_SIZE} />, borderColor: 'border-orange-200', bgColor: 'bg-orange-50/50', iconColor: 'text-orange-500' },
+    { name: 'Cats', icon: <Cat size={ICON_SIZE} />, borderColor: 'border-purple-200', bgColor: 'bg-purple-50/50', iconColor: 'text-purple-500' },
+    { name: 'Birds', icon: <Bird size={ICON_SIZE} />, borderColor: 'border-blue-200', bgColor: 'bg-blue-50/50', iconColor: 'text-blue-500' },
+    { name: 'Reptiles', icon: <Turtle size={ICON_SIZE} />, borderColor: 'border-green-200', bgColor: 'bg-green-50/50', iconColor: 'text-green-500' },
+    { name: 'Small Mammals', icon: <Rabbit size={ICON_SIZE} />, borderColor: 'border-rose-200', bgColor: 'bg-rose-50/50', iconColor: 'text-rose-500' },
+    { name: 'Fish', icon: <Fish size={ICON_SIZE} />, borderColor: 'border-cyan-200', bgColor: 'bg-cyan-50/50', iconColor: 'text-cyan-500' },
 ];
 
-// DUMMY DATA (Maintained for UC2 Logic)
+// DUMMY DATA
 const caretakers = [
     {
-        id: 1,
+        id: "1",
         name: "Sarah Chen",
         location: "Bukit Batok",
-        experience: "5+ years",
+        experience: 5,
         rating: 4.9,
         reviews: 47,
         price: 65,
@@ -41,10 +43,10 @@ const caretakers = [
         imageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
     },
     {
-        id: 2,
+        id: "2",
         name: "Lisa Wong",
         location: "Jurong East",
-        experience: "7+ years",
+        experience: 7,
         rating: 4.8,
         reviews: 63,
         price: 75,
@@ -53,10 +55,10 @@ const caretakers = [
         imageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa",
     },
     {
-        id: 3,
+        id: "3",
         name: "Emma Ng",
         location: "Punggol",
-        experience: "4+ years",
+        experience: 4,
         rating: 4.6,
         reviews: 31,
         price: 70,
@@ -70,16 +72,37 @@ export default function Dashboard() {
     const [selectedPet, setSelectedPet] = useState("");
     const [isFiltersOpen, setIsFiltersOpen] = useState(false);
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    
+    // FILTERS DIALOG OPTIONS
+    const [filters, setFilters] = useState({
+        maximumPrice:100,
+        minExperience:"All",
+        verified:true
+    });
 
-    const caretakersList = selectedPet 
-        ? caretakers.filter(item => item.petsHandled.includes(selectedPet))
-        : caretakers;
+    // CALENDAR DATE OPTIONS
+    const [selectedDates, setSelectedDates] = useState<{start: Date | null, end: Date | null}>({ start: null, end: null });
+
+    const caretakersList = caretakers.filter(item=>{
+        const matchesPet = selectedPet ? item.petsHandled.includes(selectedPet) : true;
+        const matchesPrice = item.price <= filters.maximumPrice;
+        const matchesVerification = filters.verified ? item.isVerified === true : true;
+
+        const experienceRequired = 
+            filters.minExperience === "1+ years" ? 1 :
+            filters.minExperience === "3+ years" ? 3 :
+            filters.minExperience === "5+ years" ? 5 : 0;
+
+        const matchesExperience = item.experience >= experienceRequired;
+
+        return matchesPet && matchesPrice && matchesVerification && matchesExperience;
+    });
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-slate-900">
+        <div className="min-h-screen 0g-gray-50 flex flex-col font-sans text-slate-900">
             <Navbar/>
             
-            {/* HERO Section aligned with Brand Identity */}
+            {/* HERO SECTION */}
             <header className="w-full py-20 px-6 text-center bg-teal-600 flex flex-col items-center justify-center shadow-inner">
                 <h1 className="text-4xl md:text-5xl lg:text-6xl mb-6 font-black text-white tracking-tight">
                     Trusted Care for Your <span className="text-amber-400">Beloved Pets</span>
@@ -91,10 +114,10 @@ export default function Dashboard() {
             
             <main className="w-full max-w-7xl mx-auto px-6 py-16 grow">
                 
-                {/* Pet Selection (UC2 Entry Point) */}
+                {/* PET SELECTION */}
                 <section className="mb-12">
                     <h2 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">Browse by Pet Type</h2>
-                    <div className="flex flex-wrap gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                         {petCategories.map(pet => (
                             <PetCategoryButton
                                 key={pet.name}
@@ -108,6 +131,7 @@ export default function Dashboard() {
                             />
                         ))}
                     </div>
+                    <h6 className="text-sm font-black italic text-slate-500 mt-3">Select again to deselect</h6>
                 </section>
 
                 <section>
@@ -115,7 +139,9 @@ export default function Dashboard() {
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-4 border-b border-slate-200 pb-8">
                         <div>
                             <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-                                {`${selectedPet ? selectedPet : "All"} Caretakers`}
+                                {`${selectedPet 
+                                    ? (selectedPet.endsWith('s') ? selectedPet.slice(0,-1) : selectedPet)
+                                    : "All"} Caretakers`}
                             </h2>
                             <p className="text-slate-500 text-sm mt-1 font-medium">{caretakersList.length} professionals available</p>
                         </div>
@@ -167,10 +193,27 @@ export default function Dashboard() {
 
             {/* MODALS */}
             {isDatePickerOpen && (
-                <DatePickerModal onClose={() => setIsDatePickerOpen(false)} />
+                <DatePickerModal
+                    initialStartDate={selectedDates.start}
+                    initialEndDate={selectedDates.end}
+                    onClose={() => setIsDatePickerOpen(false)} 
+                    onConfirm={(startDate, endDate) => {
+                        setSelectedDates({ start: startDate, end: endDate });
+                        setIsDatePickerOpen(false);
+                    }}
+                />
             )}
             {isFiltersOpen && (
-                <FiltersModal onClose={() => setIsFiltersOpen(false)} />
+                <FiltersModal 
+                    onApply={(data)=>{
+                    setFilters({
+                        maximumPrice: data.maxPrice,
+                        minExperience: data.minExperience,
+                        verified: data.verified
+                    });
+                }} onClose={() => setIsFiltersOpen(false)} 
+                    currentFilters={filters}
+                />
             )}
         </div>
     )

@@ -17,7 +17,7 @@ interface CaretakerCardProps {
     id: string
     name: string;
     location: string;
-    experience: string;
+    experience: number;
     rating: number;
     reviews: number;
     price: number;
@@ -82,7 +82,12 @@ export default function CaretakerCard({
                         </span>
                         <span className="flex items-center gap-2 text-teal-600 bg-teal-50 px-3 py-1.5 rounded-xl font-black uppercase tracking-tighter">
                             <Clock size={14} strokeWidth={3} />
-                            <span className="leading-none pt-px">{experience}</span>
+                            <span className="leading-none pt-px">
+                                {typeof experience === "string" 
+                                    ? (experience as string).replace("+ years", "").trim() 
+                                    : experience}
+                                + years
+                            </span>
                         </span>
                     </div>
                 </div>

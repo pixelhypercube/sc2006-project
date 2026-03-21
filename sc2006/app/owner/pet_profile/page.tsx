@@ -1,20 +1,44 @@
 "use client"
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Navbar from '../../components/Navbar';
 import Link from 'next/link';
 import { ChevronLeft, Dog, ClipboardList } from 'lucide-react';
+import { useToast } from '@/app/context/ToastContext';
+
+const MOCK_PROFILE = {
+    name: "Dawg",
+    species: "Dog",
+    breed: "Poodle",
+    age: "3",
+    size: "Medium",
+    triggers: "Loud noises (thunder, fireworks), unfamiliar large dogs",
+    dietaryNeeds: "Allergic to chicken. Requires grain-free kibble twice a day.",
+    careNotes: "Needs a 30-minute walk every evening. Friendly but shy at first."
+};
 
 export default function PetProfile() {
-    const [petData, setPetData] = useState({
-        name: "Dawg",
-        species: "Dog",
-        breed: "Poodle",
-        age: "3",
-        size: "Medium",
-        triggers: "Loud noises (thunder, fireworks), unfamiliar large dogs",
-        dietaryNeeds: "Allergic to chicken. Requires grain-free kibble twice a day.",
-        careNotes: "Needs a 30-minute walk every evening. Friendly but shy at first."
-    });
+    const [petData, setPetData] = useState(MOCK_PROFILE);
+
+    const {fireToast} = useToast();
+
+    const handleSave = () => {
+        fireToast("success","Profile Updated","Changes saved to the Behavioral Blueprint.");
+    }
+
+    // INVISIBLE INPUT FILE ELEMENT
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            console.log("Selected file:", file.name);
+            // Here is where you'd handle the upload or preview logic
+        }
+    };
+
+    const triggerFileSelect = () => {
+        fileInputRef.current?.click();
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans pb-20">
@@ -30,11 +54,20 @@ export default function PetProfile() {
                             <h1 className="text-3xl font-bold text-gray-800">{petData.name}'s Profile</h1>
                             <p className="text-gray-500 mt-1">Manage behavioral blueprint and care instructions</p>
                         </div>
-                        <button className="bg-teal-600 hover:bg-teal-700 text-white font-medium py-2.5 px-6 rounded-lg transition-colors shadow-sm">
+                        <button onClick={()=>handleSave()} className="bg-teal-600 hover:bg-teal-700 text-white font-medium py-2.5 px-6 rounded-lg transition-colors shadow-sm">
                             Save Changes
                         </button>
                     </div>
                 </div>
+
+                {/* HIDDEN FILE INPUT */}
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handlePhotoChange}
+                    accept="image/*" // Restricts picker to images
+                    className="hidden" 
+                />
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="md:col-span-1 space-y-6">
@@ -42,7 +75,10 @@ export default function PetProfile() {
                             <div className="w-32 h-32 mx-auto bg-teal-50 rounded-full flex items-center justify-center mb-4 border-4 border-white shadow-sm">
                                 <Dog size={48} className="text-teal-500" />
                             </div>
-                            <button className="text-teal-600 hover:text-teal-700 text-sm font-medium border border-teal-100 bg-teal-50 py-2 px-4 rounded-lg w-full transition-colors">
+                            <button 
+                                onClick={triggerFileSelect}
+                                className="text-teal-600 hover:text-teal-700 text-sm font-medium border border-teal-100 bg-teal-50 py-2 px-4 rounded-lg w-full transition-colors active:scale-95"
+                            >
                                 Change Photo
                             </button>
                         </div>

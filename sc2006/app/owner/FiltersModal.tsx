@@ -1,11 +1,21 @@
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, X } from "lucide-react";
 import { useState, useRef } from "react";
 
 interface FiltersModalProps {
     onClose: () => void;
+    onApply: (data: {
+        maxPrice: number,
+        minExperience: string,
+        verified: boolean
+    }) => void,
+    currentFilters: {
+        maximumPrice: number,
+        minExperience: string,
+        verified: boolean
+    }
 }
 
-export default function FiltersModal({ onClose }: FiltersModalProps) {
+export default function FiltersModal({ onClose, onApply, currentFilters }: FiltersModalProps) {
     const modalRef = useRef<HTMLDivElement>(null);
 
     const handleOverlayClick = (e: React.MouseEvent) => {
@@ -15,11 +25,16 @@ export default function FiltersModal({ onClose }: FiltersModalProps) {
     };
 
     // states for filters inside modal
-    const [maxPrice, setMaxPrice] = useState<number>(100);
-    const [minExperience, setMinExperience] = useState<string>("All");
-    const [mustBeVerified, setMustBeVerified] = useState<boolean>(false);
+    const [maxPrice, setMaxPrice] = useState<number>(currentFilters.maximumPrice);
+    const [minExperience, setMinExperience] = useState<string>(currentFilters.minExperience);
+    const [verified, setVerified] = useState<boolean>(currentFilters.verified);
 
     const handleApply = () => {
+        onApply({
+            maxPrice,
+            minExperience,
+            verified
+        });
         onClose();
     };
 
@@ -43,7 +58,7 @@ export default function FiltersModal({ onClose }: FiltersModalProps) {
                         onClick={onClose}
                         className="text-gray-400 hover:text-gray-600 transition-colors bg-gray-50 rounded-full p-2"
                     >
-                        ✕
+                        <X/>
                     </button>
                 </div>
 
@@ -97,8 +112,8 @@ export default function FiltersModal({ onClose }: FiltersModalProps) {
                         <label className="flex items-center gap-3 cursor-pointer">
                             <input 
                                 type="checkbox" 
-                                checked={mustBeVerified}
-                                onChange={(e) => setMustBeVerified(e.target.checked)}
+                                checked={verified}
+                                onChange={(e) => setVerified(e.target.checked)}
                                 className="w-5 h-5 rounded border-gray-300 text-teal-500 focus:ring-teal-500"
                             />
                             <span className="text-gray-700 flex items-center gap-2">
@@ -118,7 +133,7 @@ export default function FiltersModal({ onClose }: FiltersModalProps) {
                         onClick={() => {
                             setMaxPrice(100);
                             setMinExperience("All");
-                            setMustBeVerified(false);
+                            setVerified(false);
                         }}
                         className="text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors underline"
                     >

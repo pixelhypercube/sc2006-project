@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+@theme {
+  --animate-slide-in-right: slide-in-right 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-slide-in-left: slide-in-left 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+  @keyframes slide-in-right {
+    0% { transform: translateX(100%); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+  }
+
+  @keyframes slide-in-left {
+    0% { transform: translateX(-100%); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+  }
+}
+
 @font-face {
   font-family: Nunito;
   src: url(./fonts/Nunito.ttf);
@@ -103,4 +118,9 @@ input[type="checkbox"]:focus-visible {
   .animate-shake {
     animation: shake 0.2s ease-in-out 3;
   }
+}
+
+/* Removes the black focus box when clicking Leaflet GeoJSON regions */
+path.leaflet-interactive:focus {
+    outline: none;
 }

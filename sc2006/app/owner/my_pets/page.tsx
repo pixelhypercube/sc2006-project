@@ -38,7 +38,6 @@ export default function MyPets() {
 
     // Modal States
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     
     // Track which pet is selected for Editing or Deleting
@@ -55,7 +54,6 @@ export default function MyPets() {
     // Handlers
     const openEditModal = (pet: any) => {
         setSelectedPet(pet);
-        setIsEditModalOpen(true);
     };
 
     const openDeleteModal = (pet: any) => {
@@ -103,7 +101,6 @@ export default function MyPets() {
                         <Plus size={18} /> Add Pet
                     </button>
                 </div>
-
                 {pets.length === 0 ? (
                     // EMPTY STATE
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
@@ -168,8 +165,6 @@ export default function MyPets() {
         </div>
     );
 }
-
-
 // ADD PET MODAL
 function AddPetModal({ onSubmit, onClose }: { onSubmit: (pet: any) => void; onClose: () => void }) {
     const [formData, setFormData] = useState({
@@ -219,14 +214,16 @@ function AddPetModal({ onSubmit, onClose }: { onSubmit: (pet: any) => void; onCl
                         <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
                         <input onChange={handleChange} name="name" type="text" placeholder="Pet's name" className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-teal-500" />
                     </div>
-
-                    <div>
+                        <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
                         <select onChange={handleChange} name="type" className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:border-teal-500">
-                            <option>Select category</option>
-                            <option>Dogs</option>
-                            <option>Cats</option>
-                            <option>Birds</option>
+                            <option value="">Select category</option>
+                            <option value="dog">Dog</option>
+                            <option value="cat">Cat</option>
+                            <option value="bird">Bird</option>
+                            <option value="reptile">Reptile</option>
+                            <option value="small_mammal">Small Mammal</option>
+                            <option value="fish">Fish</option>
                         </select>
                     </div>
 
@@ -271,7 +268,6 @@ interface DeletePetModalProps {
 // DELETE PET MODAL
 function DeletePetModal({ pet, onClose, onDelete }: DeletePetModalProps) {
     const modalRef = useRef<HTMLDivElement>(null);
-
     if (!pet) return null;
     
     const handleOverlayClick = (e: React.MouseEvent) => {

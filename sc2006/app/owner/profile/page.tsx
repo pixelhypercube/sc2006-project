@@ -148,7 +148,7 @@ export default function OwnerProfile() {
                     ))}
                 </div>
 
-                <div className="bg-white border border-slate-100 rounded-[2rem] p-10 shadow-sm">
+                <div className="bg-white border border-slate-100 rounded-4xl p-10 shadow-sm">
                     
                     {/* PERSONAL INFO TAB */}
                     {activeTab === "personal" && (
@@ -157,12 +157,14 @@ export default function OwnerProfile() {
                                 <div className="w-24 h-24 bg-teal-500 rounded-3xl flex items-center justify-center text-white text-4xl font-black shadow-lg shadow-teal-500/20">
                                     {profileData.initials}
                                 </div>
-                                <div className="space-y-2">
-                                    <button className="flex items-center gap-2 px-5 py-2.5 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-colors">
-                                        <Upload size={14} /> Change Avatar
-                                    </button>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">JPG or PNG • Max 2MB</p>
-                                </div>
+                                {isEditing && (
+                                    <div className="space-y-2">
+                                        <button className="flex items-center gap-2 px-5 py-2.5 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-colors">
+                                            <Upload size={14} /> Change Avatar
+                                        </button>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">JPG or PNG • Max 2MB</p>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -218,7 +220,7 @@ export default function OwnerProfile() {
                                 <div className="pt-6 border-t border-slate-50 flex items-center gap-4">
                                     <button 
                                         onClick={() => { setIsEditing(false); setProfileData(initialUser); }}
-                                        className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-colors flex items-center gap-2"
+                                        className="text-xs font-black uppercase tracking-widest text-red-600 hover:text-red-400 transition-colors flex items-center gap-2"
                                     >
                                         <X size={14} /> Discard Changes
                                     </button>

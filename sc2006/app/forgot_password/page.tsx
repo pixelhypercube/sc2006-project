@@ -2,10 +2,42 @@
 import { useState } from "react";
 import Navbar from "../components/Navbar";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function ForgotPassword() {
+    const router = useRouter();
     const [email, setEmail] = useState("");
     const [isSent, setIsSent] = useState(false);
+    const [errorMsg, setErrorMsg] = useState("");
+
+    async function send(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        if (!email) {
+            setErrorMsg("Please enter an email address.");
+            return;
+        }
+
+        try {
+            
+            const res = await fetch("/api/", { // set API to forgot password
+                method:"POST",
+                headers: {"Content-Type":"application/json"},
+                body: JSON.stringify({email})
+            }); 
+
+            const data = res.json();
+            
+            if (res.ok) {
+                setIsSent(true);
+            } else {
+
+            }
+        } catch (err) {
+            console.error("Error", err);
+            setErrorMsg(`An unexpected error occurred. Please try again later.`);
+        }
+    }
+    
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -18,9 +50,13 @@ export default function ForgotPassword() {
                             Enter your email and we'll send you a recovery link.
                         </p>
                     </div>
-
+                    {errorMsg && (
+                        <div className="mb-6 p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg animate-pulse">
+                            {errorMsg}
+                        </div>
+                    )}
                     {!isSent ? (
-                        <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); setIsSent(true); }}>
+                        <form className="space-y-5" onSubmit={(e) => send(e)}>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                                 <input 

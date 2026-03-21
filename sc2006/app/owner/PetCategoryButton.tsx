@@ -24,11 +24,11 @@ export default function PetCategoryButton({
             key={name}
             onClick={onClick}
             className={`
-                flex flex-col items-center justify-center w-40 h-28 rounded-2xl border-2 transition-all cursor-pointer relative
+                flex flex-col items-center justify-center w-full aspect-4/3 p-4 rounded-2xl border-2
                 ${borderColor} ${bgColor}
                 /* Use brightness to darken the existing category colors instead of hardcoding teal */
                 ${selected 
-                    ? 'border-4 scale-105 font-extrabold brightness-90 shadow-inner' 
+                    ? 'border-4 scale-105 font-extrabold brightness-90 shaw-inner' 
                     : 'bg-opacity-50 hover:shadow-md hover:brightness-95' // adjust brightness lower to make it stand out
                 }
             `}      
@@ -36,7 +36,7 @@ export default function PetCategoryButton({
             <span className={`text-3xl mb-2 ${iconColor}`}>
                 {icon}
             </span>
-            <span className="text-md font-semibold text-gray-700">
+            <span className="text-sm font-bold text-gray-600 uppercase">
                 {name}
             </span>
         </button>
