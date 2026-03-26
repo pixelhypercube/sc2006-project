@@ -162,21 +162,6 @@ export default function CaregiverDashboard() {
 
                             </div>
                         </div>
-
-                        {/* DATA PRIVACY REMINDER */}
-                        <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl shadow-slate-900/20">
-                            <h4 className="font-bold text-md mb-2 flex items-center gap-2">
-                                <span className="flex items-center justify-center shrink-0">
-                                    <Lock size={24} className="text-teal-400"/>
-                                </span>
-                                <span className="leading-none pt-[1.5px]">
-                                    Privacy First
-                                </span>
-                            </h4>
-                            <p className="text-sm text-slate-400 leading-relaxed font-medium">
-                                All check-in videos are deleted 1 week after the contract ends. Do not save pet media to your local device.
-                            </p>
-                        </div>
                     </div>
                 </div>
             </main>
