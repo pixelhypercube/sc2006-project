@@ -1,27 +1,38 @@
 "use client"
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Navbar from "../../components/Navbar";
 import { useAuth } from "@/hooks/useAuth";
-import { 
-    Upload, 
-    Mail, 
-    User, 
-    Phone, 
-    Clock, 
-    Check, 
+import {
+    Upload,
+    Mail,
+    User,
+    Phone,
+    Clock,
+    Check,
     ClipboardList,
     Settings,
     Save,
     X,
-    AlertTriangle
+    AlertTriangle,
+    MapPin
 } from "lucide-react";
+
+type Option = {
+  label: string;
+  value: string;
+  lat: number;
+  lng: number;
+};
 
 // DUMMY DATA
 const initialUser = {
     initials: "",
     email: "",
     name: "",
-    phone: ""
+    phone: "",
+    location: "",
+    latitude: "",
+    longitude: ""
 };
 
 export default function OwnerProfile() {
@@ -32,15 +43,26 @@ export default function OwnerProfile() {
     const [activeTab, setActiveTab] = useState("personal");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
-    
+    const [avatar, setAvatar] = useState<string | null>(null);
+    const [avatarUploading, setAvatarUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const [search, setSearch] = useState("");
+    const [options, setOptions] = useState<Option[]>([]);
+    const [selected, setSelected] = useState<Option | null>(null);
+
     useEffect(() => {
     if (user && !loading) {
         setProfileData({
         initials: user.name?.[0] || '',
         email: user.email || '',
         name: user.name || '',
-        phone: user.phone || ''
+        phone: user.phone || '',
+        location: user.location || '',
+        latitude: (user as any).latitude || '',
+        longitude: (user as any).longitude || ''
         });
+        setAvatar((user as any).avatar || null);
     }
     }, [user, loading]);
 
@@ -50,12 +72,25 @@ export default function OwnerProfile() {
         name: user?.name,
         phone: user?.phone
     };
-    
-    
-    // State to manage form data
-    //const [profileData, setProfileData] = useState(dataUser);
-    // console.log(dataUser)
-    // console.log(profileData)
+
+    useEffect(() => {
+        const id = setTimeout(() => {
+        if (!search || search.length < 2) {
+            setOptions([]);
+            return;
+        }
+
+        fetch(`/api/onemap/search?q=${encodeURIComponent(search)}`)
+            .then((r) => r.json())
+            .then((data) => {
+            setOptions(data.options || []);
+            })
+            .catch(() => setOptions([]));
+        }, 300);
+
+        return () => clearTimeout(id);
+    }, [search]);
+
     const [reports, setReports] = useState([
         {
             id: 1,
@@ -65,7 +100,7 @@ export default function OwnerProfile() {
             regarding: "Sarah Chen",
             status: "Pending Review"
         }
-    ]); 
+    ]);
 
     const handleSave = async () => {
         try {
@@ -79,6 +114,9 @@ export default function OwnerProfile() {
             body: JSON.stringify({
             name: profileData.name,
             phone: profileData.phone,
+            location: profileData.location,
+            latitude: profileData.latitude,
+            longitude: profileData.longitude,
             }),
         });
 
@@ -95,6 +133,7 @@ export default function OwnerProfile() {
             initials: data.user.name?.[0] || '',
             name: data.user.name || '',
             phone: data.user.phone || '',
+            location: data.user.location || '',
         }));
 
         setIsEditing(false);
@@ -105,24 +144,50 @@ export default function OwnerProfile() {
         setSaving(false);
         }
     };
+
+    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const form = new FormData();
+        form.append('avatar', file);
+
+        try {
+            setAvatarUploading(true);
+            setError(null);
+            const res = await fetch('/api/profile/avatar', {
+                method: 'POST',
+                credentials: 'include',
+                body: form,
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Upload failed');
+            setAvatar(data.avatarUrl);
+        } catch (err: any) {
+            setError(err.message || 'Failed to upload avatar');
+        } finally {
+            setAvatarUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
     if (loading) return <div>Loading...</div>;
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-20">
             <Navbar />
-            
+
             <main className="max-w-4xl mx-auto pt-12 px-6 pb-20">
                 <div className="flex justify-between items-end mb-8">
                     <div>
                         <h1 className="text-3xl font-black text-slate-900 tracking-tight">My Profile</h1>
                         <p className="text-sm font-medium text-slate-500 mt-1">Manage your account and incident reports</p>
                     </div>
-                    
+
                     {activeTab === "personal" && (
-                        <button 
+                        <button
                             onClick={() => isEditing ? handleSave() : setIsEditing(true)}
                             className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-md active:scale-95 ${
-                                isEditing 
-                                ? "bg-teal-600 text-white shadow-teal-600/20 hover:bg-teal-700" 
+                                isEditing
+                                ? "bg-teal-600 text-white shadow-teal-600/20 hover:bg-teal-700"
                                 : "bg-white text-slate-900 border border-slate-200 hover:bg-slate-50"
                             }`}
                         >
@@ -134,12 +199,12 @@ export default function OwnerProfile() {
                 {/* TAB SWITCHER */}
                 <div className="flex gap-2 mb-8 bg-slate-200/50 p-1 rounded-xl w-fit border border-slate-200/50">
                     {["personal", "incidents"].map((tab) => (
-                        <button 
+                        <button
                             key={tab}
                             onClick={() => { setActiveTab(tab); setIsEditing(false); }}
                             className={`px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
-                                activeTab === tab 
-                                ? "bg-white shadow-sm text-slate-900" 
+                                activeTab === tab
+                                ? "bg-white shadow-sm text-slate-900"
                                 : "text-slate-400 hover:text-slate-600"
                             }`}
                         >
@@ -149,18 +214,32 @@ export default function OwnerProfile() {
                 </div>
 
                 <div className="bg-white border border-slate-100 rounded-4xl p-10 shadow-sm">
-                    
+
                     {/* PERSONAL INFO TAB */}
                     {activeTab === "personal" && (
                         <div className="space-y-10 animate-in fade-in duration-300">
                             <div className="flex items-center gap-8">
-                                <div className="w-24 h-24 bg-teal-500 rounded-3xl flex items-center justify-center text-white text-4xl font-black shadow-lg shadow-teal-500/20">
-                                    {profileData.initials}
+                                <div className="w-24 h-24 bg-teal-500 rounded-3xl flex items-center justify-center text-white text-4xl font-black shadow-lg shadow-teal-500/20 overflow-hidden">
+                                    {avatar
+                                        ? <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                        : <span>{profileData.initials}</span>
+                                    }
                                 </div>
                                 {isEditing && (
                                     <div className="space-y-2">
-                                        <button className="flex items-center gap-2 px-5 py-2.5 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-colors">
-                                            <Upload size={14} /> Change Avatar
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept="image/jpeg,image/png"
+                                            className="hidden"
+                                            onChange={handleAvatarChange}
+                                        />
+                                        <button
+                                            onClick={() => fileInputRef.current?.click()}
+                                            disabled={avatarUploading}
+                                            className="flex items-center gap-2 px-5 py-2.5 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                                        >
+                                            <Upload size={14} /> {avatarUploading ? 'Uploading…' : 'Change Avatar'}
                                         </button>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">JPG or PNG • Max 2MB</p>
                                     </div>
@@ -172,8 +251,8 @@ export default function OwnerProfile() {
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                                         <Mail size={12} className="text-teal-500" /> Email Address
                                     </label>
-                                    <input 
-                                        type="email" 
+                                    <input
+                                        type="email"
                                         disabled
                                         defaultValue={profileData.email}
                                         className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-slate-400 text-sm font-medium cursor-not-allowed focus:outline-none"
@@ -185,14 +264,14 @@ export default function OwnerProfile() {
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                                         <User size={12} className="text-teal-500" /> Full Name
                                     </label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         disabled={!isEditing}
                                         value={profileData.name}
                                         onChange={(e) => setProfileData({...profileData, name: e.target.value})}
                                         className={`w-full px-5 py-3.5 border rounded-2xl text-sm font-bold transition-all focus:outline-none ${
-                                            isEditing 
-                                            ? "border-teal-500 bg-white ring-4 ring-teal-500/5" 
+                                            isEditing
+                                            ? "border-teal-500 bg-white ring-4 ring-teal-500/5"
                                             : "border-slate-100 bg-slate-50 text-slate-900"
                                         }`}
                                     />
@@ -202,23 +281,72 @@ export default function OwnerProfile() {
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                                         <Phone size={12} className="text-teal-500" /> Phone Number
                                     </label>
-                                    <input 
-                                        type="tel" 
+                                    <input
+                                        type="tel"
                                         disabled={!isEditing}
                                         value={profileData.phone}
                                         onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
                                         className={`w-full px-5 py-3.5 border rounded-2xl text-sm font-bold transition-all focus:outline-none ${
-                                            isEditing 
-                                            ? "border-teal-500 bg-white ring-4 ring-teal-500/5" 
+                                            isEditing
+                                            ? "border-teal-500 bg-white ring-4 ring-teal-500/5"
                                             : "border-slate-100 bg-slate-50 text-slate-900"
                                         }`}
                                     />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                        <MapPin size={12} className="text-teal-500" /> Location
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            disabled={!isEditing}
+                                            value={search || profileData.location}
+                                            onChange={(e) => {
+                                                setSearch(e.target.value);
+                                                setSelected(null);
+                                            }}
+                                            placeholder={isEditing ? "Type address or building name..." : ""}
+                                            className={`w-full px-5 py-3.5 border rounded-2xl text-sm font-bold transition-all focus:outline-none ${
+                                                isEditing
+                                                ? "border-teal-500 bg-white ring-4 ring-teal-500/5"
+                                                : "border-slate-100 bg-slate-50 text-slate-900"
+                                            }`}
+                                        />
+                                        {isEditing && options.length > 0 && (
+                                            <ul className="absolute z-50 mt-1 w-full border rounded-md max-h-40 overflow-y-auto bg-white shadow-lg">
+                                            {options.map((opt, idx) => (
+                                                <li
+                                                key={`${opt.value}-${idx}`}
+                                                className="px-3 py-2 cursor-pointer hover:bg-blue-50 flex flex-col"
+                                                onClick={() => {
+                                                    setSelected(opt);
+                                                    setSearch(opt.label);
+                                                    setProfileData((prev) => ({
+                                                        ...prev,
+                                                        location: opt.label,
+                                                        latitude: opt.lat.toString(),
+                                                        longitude: opt.lng.toString(),
+                                                    }));
+                                                    setOptions([]);
+                                                }}
+                                                >
+                                                <span className="text-sm font-medium">{opt.label}</span>
+                                                <span className="text-xs text-gray-500">
+                                                    {opt.lat.toFixed(5)}, {opt.lng.toFixed(5)}
+                                                </span>
+                                                </li>
+                                            ))}
+                                            </ul>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
                             {isEditing && (
                                 <div className="pt-6 border-t border-slate-50 flex items-center gap-4">
-                                    <button 
+                                    <button
                                         onClick={() => { setIsEditing(false); setProfileData(initialUser); }}
                                         className="text-xs font-black uppercase tracking-widest text-red-600 hover:text-red-400 transition-colors flex items-center gap-2"
                                     >

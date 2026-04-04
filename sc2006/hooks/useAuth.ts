@@ -1,19 +1,8 @@
 // hooks/useAuth.ts
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  phone?: string;
-  role: 'OWNER' | 'CAREGIVER' | 'ADMIN';
-  avatar?: string;
-  verified: boolean;
-  location?: string;
-  biography?: string;
-  dailyRate?: number;
-}
+import type { PetType, DogSize, ServiceType } from '@/app/generated/prisma/client';
+import { User } from '@/app/generated/prisma/client';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);

@@ -329,11 +329,14 @@ export default function Navbar() {
 
                             {/* USER ACTIONS PANEL */}
                             <div className="relative hidden lg:block" ref={dropdownRef}>
-                                <button 
+                                <button
                                     onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                                    className="w-10 h-10 bg-teal-500 rounded-xl flex items-center justify-center text-white font-black text-sm"
+                                    className="w-10 h-10 bg-teal-500 rounded-xl flex items-center justify-center text-white font-black text-sm overflow-hidden"
                                 >
-                                    {DEBUG_MODE ? currentRole?.[0] || '' : user?.name?.[0] || ''}
+                                    {!DEBUG_MODE && (user as any)?.avatar
+                                        ? <img src={(user as any).avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                        : (DEBUG_MODE ? currentRole?.[0] || '' : user?.name?.[0] || '')
+                                    }
                                 </button>
 
                                 {isProfileDropdownOpen && (
@@ -453,8 +456,11 @@ export default function Navbar() {
                                     {/* USER ACTIONS PANEL */}
                                     <div className="space-y-4">
                                         <div className="flex items-center gap-3 px-2 mb-4">
-                                            <div className="w-10 h-10 bg-teal-500 rounded-xl flex items-center justify-center text-white font-black">
-                                                {DEBUG_MODE ? currentRole?.[0] || '' : user?.name?.[0] || ''}
+                                            <div className="w-10 h-10 bg-teal-500 rounded-xl flex items-center justify-center text-white font-black overflow-hidden">
+                                                {!DEBUG_MODE && (user as any)?.avatar
+                                                    ? <img src={(user as any).avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                                    : (DEBUG_MODE ? currentRole?.[0] || '' : user?.name?.[0] || '')
+                                                }
                                             </div>
                                             <p className="text-sm font-bold text-slate-900">Signed in as {currentRole}</p>
                                         </div>

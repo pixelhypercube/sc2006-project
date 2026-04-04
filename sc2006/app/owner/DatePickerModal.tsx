@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 
 interface DatePickerModalProps {
     onClose: () => void;
-    onConfirm: (startDate: Date, endDate: Date | null) => void;
+    onConfirm: (startDate: Date | null, endDate: Date | null) => void;
     initialStartDate: Date | null;
     initialEndDate: Date | null;
 }
@@ -188,31 +188,38 @@ const DatePickerModal = ({ onClose, onConfirm, initialStartDate, initialEndDate 
                     </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3">
-                    <button 
-                        onClick={onClose}
-                        className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                        Cancel
-                    </button>
-                    <button 
-                        disabled={!startDate}
+                <div className="flex items-center justify-between gap-3">
+                    <button
                         onClick={() => {
-                            if (startDate) {
-                                const startObj = new Date(startDate.year, MONTHS.indexOf(startDate.month), startDate.day);
-                                const endObj = endDate ? new Date(endDate.year, MONTHS.indexOf(endDate.month), endDate.day) : null;
-                                
-                                onConfirm(startObj, endObj);
-                            }
+                            setStartDate(null);
+                            setEndDate(null);
                         }}
-                        className={`px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors ${
-                            startDate 
-                            ? 'bg-[#87c5b8] hover:bg-[#76b1a5] cursor-pointer' 
-                            : 'bg-[#87c5b8] opacity-50 cursor-not-allowed'
-                        }`}
+                        className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-red-100 transition-colors"
                     >
-                        Confirm Dates
+                        Clear
                     </button>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={onClose}
+                            className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            //disabled={!startDate}
+                            onClick={() => {
+                                const startObj = startDate? new Date(startDate.year, MONTHS.indexOf(startDate.month), startDate.day) : null;
+                                const endObj = endDate ? new Date(endDate.year, MONTHS.indexOf(endDate.month), endDate.day) : null;
+
+                                onConfirm(startObj, endObj);
+                            }}
+                            className={`px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors ${
+                                'bg-[#87c5b8] hover:bg-[#76b1a5] cursor-pointer'
+                            }`}
+                        >
+                            Confirm Dates
+                        </button>
+                    </div>
                     </div>
                 </div>
             </div>

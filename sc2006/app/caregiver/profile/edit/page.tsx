@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import Navbar from "../../../components/Navbar";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
-import AvailabilityModal from "../../AvailabilityModal";
 import {
   ChevronLeft, 
   Save, 
@@ -47,44 +46,51 @@ import {
 import { useToast } from "../../../context/ToastContext";
 
 const petOptions = [
-    { id: 'dogs', label: 'Dogs', icon: <Dog size={14} /> },
-    { id: 'cats', label: 'Cats', icon: <Cat size={14} /> },
-    { id: 'birds', label: 'Birds', icon: <Bird size={14} /> },
-    { id: 'reptiles', label: 'Reptiles', icon: <Turtle size={14} /> },
-    { id: 'small_mammals', label: 'Small Mammals', icon: <Rabbit size={14} /> },
-    { id: 'fish', label: 'Fish', icon: <Fish size={14} /> },
+    { id: 'DOG', label: 'Dogs', icon: <Dog size={14} /> },
+    { id: 'CAT', label: 'Cats', icon: <Cat size={14} /> },
+    { id: 'BIRD', label: 'Birds', icon: <Bird size={14} /> },
+    { id: 'REPTILE', label: 'Reptiles', icon: <Turtle size={14} /> },
+    { id: 'SMALL_ANIMAL', label: 'Small Mammals', icon: <Rabbit size={14} /> },
+    { id: 'FISH', label: 'Fish', icon: <Fish size={14} /> },
 ];
 
 const dogSizeOptions = [
-    { id: 'small', label: 'Small (0-5kg)' },
-    { id: 'medium', label: 'Medium (5-20kg)' },
-    { id: 'large', label: 'Large (20kg+)' },
+    { id: 'SMALL', label: 'Small (0-5kg)' },
+    { id: 'MEDIUM', label: 'Medium (5-20kg)' },
+    { id: 'LARGE', label: 'Large (20kg+)' },
 ];
 
 const serviceOptions = [
-    { id: 'boarding', label: 'Pet Boarding', category: 'Core Care', icon: <Home size={14} /> },
-    { id: 'house_sitting', label: 'House Sitting', category: 'Core Care', icon: <CheckCircle2 size={14} /> },
-    { id: 'drop_in', label: 'Drop-in Visits', category: 'Core Care', icon: <Coffee size={14} /> },
-    { id: 'daycare', label: 'Doggie Daycare', category: 'Core Care', icon: <Sun size={14} /> },
-    { id: 'walking', label: 'Dog Walking', category: 'Core Care', icon: <Footprints size={14} /> },
-    { id: 'bathing', label: 'Bathing & Brushing', category: 'Wellness', icon: <ShowerHead size={14} /> },
-    { id: 'nails', label: 'Nail Trimming', category: 'Wellness', icon: <Scissors size={14} /> },
-    { id: 'ears', label: 'Ear Cleaning', category: 'Wellness', icon: <Wind size={14} /> },
-    { id: 'teeth', label: 'Teeth Brushing', category: 'Wellness', icon: <Sparkles size={14} /> },
-    { id: 'deshedding', label: 'De-shedding', category: 'Wellness', icon: <Zap size={14} /> },
-    { id: 'training_puppy', label: 'Puppy Training', category: 'Training', icon: <GraduationCap size={14} /> },
-    { id: 'training_obedience', label: 'Obedience', category: 'Training', icon: <Target size={14} /> },
-    { id: 'training_behavior', label: 'Behavioral', category: 'Training', icon: <Brain size={14} /> },
-    { id: 'training_agility', label: 'Agility', category: 'Training', icon: <Trophy size={14} /> },
-    { id: 'med_oral', label: 'Oral Medication', category: 'Medical', icon: <Pill size={14} /> },
-    { id: 'med_inject', label: 'Injections', category: 'Medical', icon: <Syringe size={14} /> },
-    { id: 'med_recovery', label: 'Post-Surgery', category: 'Medical', icon: <HeartPulse size={14} /> },
-    { id: 'med_senior', label: 'Senior Care', category: 'Medical', icon: <Hourglass size={14} /> },
-    { id: 'med_wound', label: 'Wound Care', category: 'Medical', icon: <Thermometer size={14} /> },
-    { id: 'taxi', label: 'Pet Taxi', category: 'Logistics', icon: <Car size={14} /> },
-    { id: 'wedding', label: 'Wedding Attendant', category: 'Logistics', icon: <PartyPopper size={14} /> },
-    { id: 'cleaning', label: 'Tank Cleaning', category: 'Logistics', icon: <Trash2 size={14} /> }
+    { id: 'BOARDING', label: 'Pet Boarding', category: 'Core Care', icon: <Home size={14} /> },
+    { id: 'HOUSE_SITTING', label: 'House Sitting', category: 'Core Care', icon: <CheckCircle2 size={14} /> },
+    { id: 'DROP_IN', label: 'Drop-in Visits', category: 'Core Care', icon: <Coffee size={14} /> },
+    { id: 'DAYCARE', label: 'Doggie Daycare', category: 'Core Care', icon: <Sun size={14} /> },
+    { id: 'WALKING', label: 'Dog Walking', category: 'Core Care', icon: <Footprints size={14} /> },
+    { id: 'BATHING', label: 'Bathing & Brushing', category: 'Wellness', icon: <ShowerHead size={14} /> },
+    { id: 'NAILS', label: 'Nail Trimming', category: 'Wellness', icon: <Scissors size={14} /> },
+    { id: 'EARS', label: 'Ear Cleaning', category: 'Wellness', icon: <Wind size={14} /> },
+    { id: 'TEETH', label: 'Teeth Brushing', category: 'Wellness', icon: <Sparkles size={14} /> },
+    { id: 'DESHEDDING', label: 'De-shedding', category: 'Wellness', icon: <Zap size={14} /> },
+    { id: 'TRAINING_PUPPY', label: 'Puppy Training', category: 'Training', icon: <GraduationCap size={14} /> },
+    { id: 'TRAINING_OBEDIENCE', label: 'Obedience', category: 'Training', icon: <Target size={14} /> },
+    { id: 'TRAINING_BEHAVIOR', label: 'Behavioral', category: 'Training', icon: <Brain size={14} /> },
+    { id: 'TRAINING_AGILITY', label: 'Agility', category: 'Training', icon: <Trophy size={14} /> },
+    { id: 'MED_ORAL', label: 'Oral Medication', category: 'Medical', icon: <Pill size={14} /> },
+    { id: 'MED_INJECT', label: 'Injections', category: 'Medical', icon: <Syringe size={14} /> },
+    { id: 'MED_RECOVERY', label: 'Post-Surgery', category: 'Medical', icon: <HeartPulse size={14} /> },
+    { id: 'MED_SENIOR', label: 'Senior Care', category: 'Medical', icon: <Hourglass size={14} /> },
+    { id: 'MED_WOUND', label: 'Wound Care', category: 'Medical', icon: <Thermometer size={14} /> },
+    { id: 'TAXI', label: 'Pet Taxi', category: 'Logistics', icon: <Car size={14} /> },
+    { id: 'WEDDING', label: 'Wedding Attendant', category: 'Logistics', icon: <PartyPopper size={14} /> },
+    { id: 'CLEANING', label: 'Tank Cleaning', category: 'Logistics', icon: <Trash2 size={14} /> }
 ];
+
+type Option = {
+  label: string;
+  value: string;
+  lat: number;
+  lng: number;
+};
 
 export default function EditCaregiverProfile() {
     const [isSaving, setIsSaving] = useState(false);
@@ -97,6 +103,8 @@ export default function EditCaregiverProfile() {
         name: "",
         phone: "",
         location: "",
+        longitude: "",
+        latitude: "",
         biography: "",
         dailyRate: 0,
         experience: 0,
@@ -110,26 +118,55 @@ export default function EditCaregiverProfile() {
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
-    const isDogSelected = selectedPets.includes('dogs');
+    // Location search state
+    const [search, setSearch] = useState('');
+    const [options, setOptions] = useState<Option[]>([]);
+    const [selected, setSelected] = useState<Option | null>(null);
+
+    const isDogSelected = selectedPets.includes('DOG');
 
     useEffect(() => {
         if (user && !loading) {
+            const cp = (user as any).caregiverProfile;
             setProfileData({
                 email: user.email || '',
                 name: user.name || '',
                 phone: user.phone || '',
                 location: user.location || '',
+                longitude: (user as any).longitude || '',
+                latitude: (user as any).latitude || '',
                 biography: user.biography || '',
-                dailyRate: user.dailyRate || 0,
-                experience: (user as any).experience || 0,
-                isAcceptingRequests: (user as any).isAcceptingRequests ?? true
+                dailyRate: cp?.dailyRate ?? 0,
+                experience: cp?.experienceYears ?? 0,
+                isAcceptingRequests: cp?.isAcceptingRequests ?? true
             });
+            // Initialize search with current location for editing
+            setSearch(user.location || '');
 
-            if ((user as any).selectedPets) setSelectedPets((user as any).selectedPets);
-            if ((user as any).selectedSizes) setSelectedSizes((user as any).selectedSizes);
-            if ((user as any).selectedServices) setSelectedServices((user as any).selectedServices);
+            if (cp?.petPreferences) setSelectedPets(cp.petPreferences);
+            if (cp?.dogSizes) setSelectedSizes(cp.dogSizes);
+            if (cp?.services) setSelectedServices(cp.services);
+            if ((user as any).avatar) setAvatarPreview((user as any).avatar);
         }
     }, [user, loading]);
+
+    useEffect(() => {
+        const id = setTimeout(() => {
+        if (!search || search.length < 2) {
+            setOptions([]);
+            return;
+        }
+
+        fetch(`/api/onemap/search?q=${encodeURIComponent(search)}`)
+            .then((r) => r.json())
+            .then((data) => {
+            setOptions(data.options || []);
+            })
+            .catch(() => setOptions([]));
+        }, 300);
+
+        return () => clearTimeout(id);
+    }, [search]);
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -151,6 +188,18 @@ export default function EditCaregiverProfile() {
     const handleSave = async () => {
         setIsSaving(true);
         try {
+            // Upload avatar first if exists
+            if (avatarFile) {
+                const formData = new FormData();
+                formData.append('avatar', avatarFile);
+                const avatarRes = await fetch('/api/profile/avatar', {
+                    method: 'POST',
+                    credentials: 'include',
+                    body: formData,
+                });
+                if (!avatarRes.ok) throw new Error('Failed to upload avatar');
+            }
+
             const res = await fetch('/api/profile', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -160,6 +209,8 @@ export default function EditCaregiverProfile() {
                     phone: profileData.phone,
                     biography: profileData.biography,
                     location: profileData.location,
+                    latitude: profileData.latitude,
+                    longitude: profileData.longitude,
                     dailyRate: profileData.dailyRate,
                     experience: profileData.experience,
                     isAcceptingRequests: profileData.isAcceptingRequests,
@@ -225,17 +276,17 @@ export default function EditCaregiverProfile() {
                             </h2>
                             
                             <div className="flex flex-col md:flex-row gap-8 mb-8">
-                                <label className="relative group cursor-pointer block">
-                                    <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Edit Photo</label>
-                                    <div className="w-32 h-32 rounded-3xl bg-slate-100 border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-400 group-hover:bg-slate-200 transition-colors overflow-hidden">
-                                        {avatarPreview ? (
-                                            <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <User size={40} strokeWidth={1} />
-                                        )}
-                                    </div>
-                                </label>
+                                 <div className="relative group cursor-pointer block">
+                                     <label htmlFor="avatar-upload" className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Edit Photo</label>
+                                     <input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                                     <label htmlFor="avatar-upload" className="w-32 h-32 rounded-3xl bg-slate-100 border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-400 group-hover:bg-slate-200 transition-colors overflow-hidden block">
+                                         {avatarPreview ? (
+                                             <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                                         ) : (
+                                             <User size={40} strokeWidth={1} />
+                                         )}
+                                     </label>
+                                 </div>
                                 <div className="flex-1 space-y-4">
                                     <div>
                                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Display Name</label>
@@ -251,12 +302,42 @@ export default function EditCaregiverProfile() {
                                             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Service Location</label>
                                             <div className="relative">
                                                 <MapPin size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                                                <input 
-                                                    type="text" 
-                                                    value={profileData.location} 
-                                                    onChange={(e) => setProfileData(prev => ({ ...prev, location: e.target.value }))} 
-                                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:border-teal-600 font-medium" 
+                                                <input
+                                                    type="text"
+                                                    value={search || profileData.location}
+                                                    onChange={(e) => {
+                                                    setSearch(e.target.value);
+                                                    setSelected(null);
+                                                    }}
+                                                    placeholder="Type address or building name..."
+                                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:border-teal-600 font-medium"
                                                 />
+                                                {options.length > 0 && (
+                                                    <ul className="absolute z-50 mt-1 w-full border rounded-md max-h-40 overflow-y-auto bg-white shadow-lg">
+                                                    {options.map((opt, idx) => (
+                                                        <li
+                                                        key={`${opt.value}-${idx}`}
+                                                        className="px-3 py-2 cursor-pointer hover:bg-blue-50 flex flex-col"
+                                                        onClick={() => {
+                                                            setSelected(opt);
+                                                            setSearch(opt.label);
+                                                            setProfileData((prev) => ({
+                                                                ...prev,
+                                                                location: opt.label,
+                                                                latitude: opt.lat.toString(),
+                                                                longitude: opt.lng.toString(),
+                                                            }));
+                                                            setOptions([]);
+                                                        }}
+                                                        >
+                                                        <span className="text-sm font-medium">{opt.label}</span>
+                                                        <span className="text-xs text-gray-500">
+                                                            {opt.lat.toFixed(5)}, {opt.lng.toFixed(5)}
+                                                        </span>
+                                                        </li>
+                                                    ))}
+                                                    </ul>
+                                                )}
                                             </div>
                                         </div>
                                         <div>

@@ -7,15 +7,18 @@ import 'leaflet/dist/leaflet.css';
 
 interface MapComponentProps {
     caregivers?: Array<{
-        id: number;
+        id: string;
         name: string;
         locationCoords: number[];
-        price: number;
-        rating: number;
+        price?: number;
+        dailyRate?: number;
+        rating?: number;
+        imageUrl?: string;
     }> | any;
     userLocation?: number[];
     onMapClick?: (coords: [number, number]) => void;
     searchRadius?: number;
+    minDistance?: number;
 }
 
 const customMarkerIcon = new L.DivIcon({
@@ -36,17 +39,23 @@ const userMarkerIcon = new L.DivIcon({
 // helper function for coords
 function MapUpdater({ coordinates }: { coordinates?: number[] }) {
     const map = useMap();
-    
+
     useEffect(() => {
         if (coordinates && coordinates.length === 2 && coordinates[0] !== 0 && coordinates[1] !== 0) {
-            map.flyTo([coordinates[0], coordinates[1]], 14, {
-                animate: true,
-                duration: 1.5
-            });
+            try {
+                if (map && map.getContainer() && map.getCenter()) {
+                    map.flyTo([coordinates[0], coordinates[1]], 14, {
+                        animate: true,
+                        duration: 1.5
+                    });
+                }
+            } catch (error) {
+                console.error('Map flyTo error:', error);
+            }
         }
     }, [coordinates, map]);
 
-    return null; // this component doesn't render any visible UI
+    return null;
 }
 
 function MapClickHandler({ onClick }: { onClick?: (coords: [number, number]) => void }) {
@@ -66,7 +75,8 @@ export default function MapComponent(
         caregivers = [],
         userLocation,
         onMapClick,
-        searchRadius = 5
+        searchRadius = 5,
+        minDistance = 0
     } : MapComponentProps
 ) {
     const [boundaries, setBoundaries] = useState<any | null>(null);
@@ -75,19 +85,23 @@ export default function MapComponent(
     useEffect(() => {
         async function fetchDataGovSgBoundaries() {
             try {
-                const datasetId = "d_4765db0e87b9c86336792efe8a1f7a66"; 
+                const datasetId = "d_4765db0e87b9c86336792efe8a1f7a66";
                 const pollUrl = `https://api-open.data.gov.sg/v1/public/api/datasets/${datasetId}/poll-download`;
-                const pollRes = await fetch(pollUrl);
-                
-                if (!pollRes.ok) throw new Error("Failed to connect to data.gov.sg API");
-                
-                const pollData = await pollRes.json();
-                
-                if (pollData.code !== 0) {
-                    throw new Error(pollData.errMsg || "Error generating download link");
+
+                let downloadUrl: string | null = null;
+                for (let attempt = 0; attempt < 10; attempt++) {
+                    const pollRes = await fetch(pollUrl);
+                    if (!pollRes.ok) throw new Error("Failed to connect to data.gov.sg API");
+
+                    const pollData = await pollRes.json();
+                    if (pollData.code === 0) {
+                        downloadUrl = pollData.data.url;
+                        break;
+                    }
+                    await new Promise((resolve) => setTimeout(resolve, 3000));
                 }
-                
-                const downloadUrl = pollData.data.url;
+
+                if (!downloadUrl) throw new Error("Download link not ready after polling");
                 const geoJsonRes = await fetch(downloadUrl);
                 const geoJsonData = await geoJsonRes.json();
                 
@@ -172,22 +186,33 @@ export default function MapComponent(
                             />
                         )}
                         
-                        {/* FOR CAREGIVERS */}
-                        {caregivers.map((cg : any) => (
-                            <Marker 
-                                key={cg.id} 
-                                position={[cg.locationCoords[0], cg.locationCoords[1]]}
-                                icon={customMarkerIcon}
-                            >
-                                <Popup className="rounded-xl overflow-hidden font-sans">
-                                    <div className="text-center p-1">
-                                        <h3 className="font-bold text-slate-900 text-sm m-0 leading-tight">{cg.name}</h3>
-                                        <p className="text-teal-600 font-bold text-xs mt-1 mb-0">${cg.price}/day</p>
-                                        <p className="text-amber-500 font-bold text-[10px] mt-0.5 mb-0">★ {cg.rating}</p>
-                                    </div>
-                                </Popup>
-                            </Marker>
-                        ))}
+                        {/* FOR CAREGIVERS - Only show if minDistance is set */}
+                        {minDistance > 0 && caregivers.filter((cg: any) => cg.locationCoords?.[0] != null && cg.locationCoords?.[1] != null).map((cg : any) => {
+                            const avatarIcon = new L.DivIcon({
+                                className: 'bg-transparent',
+                                html: cg.imageUrl
+                                    ? `<div style="width: 40px; height: 40px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.3); overflow: hidden; background: white;"><img src="${cg.imageUrl}" style="width: 100%; height: 100%; object-fit: cover;" /></div>`
+                                    : `<div style="background-color: #0d9488; width: 40px; height: 40px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">${cg.name?.[0] || '?'}</div>`,
+                                iconSize: [40, 40],
+                                iconAnchor: [20, 20],
+                            });
+
+                            return (
+                                <Marker
+                                    key={cg.id}
+                                    position={[cg.locationCoords[0], cg.locationCoords[1]]}
+                                    icon={avatarIcon}
+                                >
+                                    <Popup className="rounded-xl overflow-hidden font-sans">
+                                        <div className="text-center p-1">
+                                            <h3 className="font-bold text-slate-900 text-sm m-0 leading-tight">{cg.name}</h3>
+                                            <p className="text-teal-600 font-bold text-xs mt-1 mb-0">${cg.price || cg.dailyRate}/day</p>
+                                            {cg.rating && <p className="text-amber-500 font-bold text-[10px] mt-0.5 mb-0">★ {cg.rating}</p>}
+                                        </div>
+                                    </Popup>
+                                </Marker>
+                            );
+                        })}
 
                         {/* FOR USER & SEARCH RADIUS */}
                         {userLocation && userLocation[0] !== 0 && userLocation[1] !== 0 && (

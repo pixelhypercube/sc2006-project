@@ -1,20 +1,21 @@
 "use client"
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import CaretakerCard from "../components/CaretakerCard";
 import Navbar from "../components/Navbar";
 import PetCategoryButton from "./PetCategoryButton";
 import DatePickerModal from "./DatePickerModal";
 import FiltersModal from "./FiltersModal";
+import { useAuth } from "@/hooks/useAuth";
 
-import { 
-  Dog, 
-  Cat, 
-  Bird, 
-  Turtle, 
-  Rabbit, 
-  Fish, 
-  Calendar, 
-  SlidersHorizontal 
+import {
+  Dog,
+  Cat,
+  Bird,
+  Turtle,
+  Rabbit,
+  Fish,
+  Calendar,
+  SlidersHorizontal
 } from "lucide-react";
 
 const ICON_SIZE = 32;
@@ -28,51 +29,45 @@ const petCategories = [
     { name: 'Fish', icon: <Fish size={ICON_SIZE} />, borderColor: 'border-cyan-200', bgColor: 'bg-cyan-50/50', iconColor: 'text-cyan-500' },
 ];
 
-// DUMMY DATA
-const caretakers = [
-    {
-        id: "1",
-        name: "Sarah Chen",
-        location: "Bukit Batok",
-        experience: 5,
-        rating: 4.9,
-        reviews: 47,
-        price: 65,
-        isVerified: true,
-        petsHandled: ["Dogs","Cats"],
-        imageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
-    },
-    {
-        id: "2",
-        name: "Lisa Wong",
-        location: "Jurong East",
-        experience: 7,
-        rating: 4.8,
-        reviews: 63,
-        price: 75,
-        isVerified: true,
-        petsHandled: ["Dogs", "Cats", "Birds"],
-        imageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa",
-    },
-    {
-        id: "3",
-        name: "Emma Ng",
-        location: "Punggol",
-        experience: 4,
-        rating: 4.6,
-        reviews: 31,
-        price: 70,
-        isVerified: true,
-        petsHandled: ["Dogs"],
-        imageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Emma",
-    }
-];
+// Maps Pet.type (lowercase string) → PetType enum
+const petTypeToPrismaEnum: Record<string, string> = {
+    dog: 'DOG',
+    cat: 'CAT',
+    bird: 'BIRD',
+    fish: 'FISH',
+    reptile: 'REPTILE',
+    'small mammal': 'SMALL_ANIMAL',
+    small_mammal: 'SMALL_ANIMAL',
+};
+
+// Maps PetType enum → display name used by CaretakerCard
+const enumToDisplayName: Record<string, string> = {
+    DOG: 'Dogs',
+    CAT: 'Cats',
+    BIRD: 'Birds',
+    FISH: 'Fish',
+    REPTILE: 'Reptiles',
+    SMALL_ANIMAL: 'Small Mammals',
+};
+
+// Maps pet category button name → PetType enum
+const categoryToEnum: Record<string, string> = {
+    Dogs: 'DOG',
+    Cats: 'CAT',
+    Birds: 'BIRD',
+    Reptiles: 'REPTILE',
+    'Small Mammals': 'SMALL_ANIMAL',
+    Fish: 'FISH',
+};
 
 export default function Dashboard() {
+    const { user, loading: authLoading } = useAuth();
     const [selectedPet, setSelectedPet] = useState("");
     const [isFiltersOpen, setIsFiltersOpen] = useState(false);
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-    
+    const [caretakers, setCaretakers] = useState<any[]>([]);
+    const [caretakersLoading, setCaretakersLoading] = useState(true);
+
     // FILTERS DIALOG OPTIONS
     const [filters, setFilters] = useState({
         maximumPrice:100,
@@ -83,20 +78,100 @@ export default function Dashboard() {
     // CALENDAR DATE OPTIONS
     const [selectedDates, setSelectedDates] = useState<{start: Date | null, end: Date | null}>({ start: null, end: null });
 
-    const caretakersList = caretakers.filter(item=>{
-        const matchesPet = selectedPet ? item.petsHandled.includes(selectedPet) : true;
-        const matchesPrice = item.price <= filters.maximumPrice;
-        const matchesVerification = filters.verified ? item.isVerified === true : true;
+    useEffect(() => {
+        if (authLoading) return;
 
-        const experienceRequired = 
-            filters.minExperience === "1+ years" ? 1 :
-            filters.minExperience === "3+ years" ? 3 :
-            filters.minExperience === "5+ years" ? 5 : 0;
+        async function load() {
+            setCaretakersLoading(true);
+            try {
+                // Fetch owner's pets to determine relevant pet types
+                let petTypesParam = '';
+                const petsRes = await fetch('/api/pets', { credentials: 'include' });
+                if (petsRes.ok) {
+                    const petsData = await petsRes.json();
+                    const ownerPets: any[] = petsData.pets ?? [];
+                    const enumTypes = [...new Set(
+                        ownerPets
+                            .map(p => petTypeToPrismaEnum[p.type?.toLowerCase()] ?? null)
+                            .filter(Boolean)
+                    )];
+                    if (enumTypes.length > 0) {
+                        petTypesParam = enumTypes.join(',');
+                    }
+                }
 
-        const matchesExperience = item.experience >= experienceRequired;
+                const url = petTypesParam
+                    ? `/api/caregivers?petTypes=${petTypesParam}`
+                    : '/api/caregivers';
 
-        return matchesPet && matchesPrice && matchesVerification && matchesExperience;
-    });
+                const res = await fetch(url, { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    setCaretakers(data.caregivers ?? []);
+                }
+            } catch (e) {
+                console.error('Failed to load caregivers', e);
+            } finally {
+                setCaretakersLoading(false);
+            }
+        }
+
+        load();
+    }, [authLoading]);
+
+    const caretakersList = caretakers
+        .map(c => ({
+            id: c.id,
+            name: c.name ?? '',
+            location: c.location ?? '',
+            experience: c.experienceYears ?? 0,
+            rating: c.averageRating ?? 0,
+            reviews: c.totalReviews ?? 0,
+            price: c.dailyRate ?? 0,
+            isVerified: c.verified ?? false,
+            imageUrl: c.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(c.name ?? c.id)}`,
+            petsHandled: (c.petPreferences ?? []).map((p: string) => enumToDisplayName[p]).filter(Boolean),
+            bookings: c.user?.caregiverBookings ?? [],
+        }))
+        .filter(item => {
+            const matchesPet = selectedPet
+                ? item.petsHandled.includes(selectedPet)
+                : true;
+            const matchesPrice = item.price <= filters.maximumPrice;
+            const matchesVerification = filters.verified ? item.isVerified === true : true;
+            const experienceRequired =
+                filters.minExperience === "1+ years" ? 1 :
+                filters.minExperience === "3+ years" ? 3 :
+                filters.minExperience === "5+ years" ? 5 : 0;
+            const matchesExperience = item.experience >= experienceRequired;
+            // Date availability filter - exclude if dates overlap with CONFIRMED or IN_PROGRESS bookings
+            let matchesAvailability = true;
+            let startDate = selectedDates.start;                                                                                         
+            let endDate = selectedDates.end;                                                                                             
+      
+                  // If only one date is selected, use it for both start and end                                                               
+            if (startDate && !endDate) {                                                                                                 
+                endDate = startDate;                                                                                                     
+            } else if (endDate && !startDate) {                                                                                          
+                startDate = endDate;                                                                                                     
+            }                                                                                                                            
+                                                                                                                                        
+            if (startDate && endDate) {                                                                                                  
+                const selectedStart = new Date(startDate);                                                                               
+                const selectedEnd = new Date(endDate);
+
+                const hasConflict = item.bookings.some((booking: { id: string; startDate: string; endDate: string; status: string }) => {
+                    const bookingStart = new Date(booking.startDate);
+                    const bookingEnd = new Date(booking.endDate);
+                    // Check if booking overlaps with selected period (inclusive of same-day bookings)
+                    return bookingStart <= selectedEnd && bookingEnd >= selectedStart;
+                });
+
+                matchesAvailability = !hasConflict;
+            }
+
+            return matchesPet && matchesPrice && matchesVerification && matchesExperience && matchesAvailability;
+        });
 
     return (
         <div className="min-h-screen 0g-gray-50 flex flex-col font-sans text-slate-900">
@@ -147,12 +222,16 @@ export default function Dashboard() {
                         </div>
                         
                         <div className="flex gap-3">
-                            <button 
+                            <button
                                 onClick={() => setIsDatePickerOpen(true)}
                                 className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-[13px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
                             >
                                 <Calendar size={16} className="text-teal-600" />
                                 <span>Availability</span>
+                                {/* Show green dot if dates are selected */}
+                                {(selectedDates.start || selectedDates.end) && (
+                                    <span className="w-2 h-2 rounded-full bg-teal-500 ml-1"></span>
+                                )}
                             </button>
                             
                             <button 
@@ -166,17 +245,21 @@ export default function Dashboard() {
                     </div>
 
                     {/* CARETAKERS GRID */}
+                    {caretakersLoading ? (
+                        <div className="text-center py-24 text-slate-400 font-bold text-sm uppercase tracking-widest">Loading caregivers…</div>
+                    ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {caretakersList.map((caretaker) => (
-                            <CaretakerCard 
+                            <CaretakerCard
                                 key={caretaker.id}
-                                {...caretaker} 
+                                {...caretaker}
                             />
                         ))}
                     </div>
+                    )}
 
                     {/* Empty State */}
-                    {caretakersList.length === 0 && (
+                    {!caretakersLoading && caretakersList.length === 0 && (
                         <div className="text-center py-24 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
                             <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-2xl flex items-center justify-center mx-auto mb-4">
                                 <Dog size={32} strokeWidth={1.5} />

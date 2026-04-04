@@ -9,15 +9,23 @@ export async function GET(request: NextRequest) {
     // Get token from cookies
     const { searchParams } = request.nextUrl;
     const location = searchParams.get('location') || undefined;
+    const petTypesParam = searchParams.get('petTypes');
     const cookieStore = await cookies();
     const token = cookieStore.get('access_token')?.value;
     const where: any = {};
 
     if (location!="") {
       where.location = {
-        contains: location, // Case-sensitive partial match
-        mode: 'insensitive' // Case-insensitive
+        contains: location,
+        mode: 'insensitive'
       };
+    }
+
+    if (petTypesParam) {
+      const petTypes = petTypesParam.split(',').filter(Boolean);
+      if (petTypes.length > 0) {
+        where.petPreferences = { hasSome: petTypes };
+      }
     }
 
 
@@ -40,7 +48,40 @@ export async function GET(request: NextRequest) {
     // Fetch all pets for this user
     const caregivers = await prisma.caregiverProfile.findMany({
       where,
-      orderBy: { createdAt: 'asc' }      
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        biography: true,
+        dailyRate: true,
+        location: true,
+        experienceYears: true,
+        verified: true,
+        averageRating: true,
+        totalReviews: true,
+        completedBookings: true,
+        petPreferences: true,
+        createdAt: true,
+        updatedAt: true,
+        user: {
+          select: {
+            avatar: true,
+            latitude: true,
+            longitude: true,
+            caregiverBookings: {
+              select: {
+                id: true,
+                startDate: true,
+                endDate: true,
+                status: true
+              },
+              where: {
+                status: { in: ['CONFIRMED', 'IN_PROGRESS'] }
+              }
+            }
+          }
+        },
+      }
     });
 
     // Format the response

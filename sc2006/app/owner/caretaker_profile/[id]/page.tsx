@@ -59,6 +59,7 @@ interface caregiver {
     // petsHandled: string[];
     biography: string;
     // sizesHandled: string[];
+    avatar?: string;
 }
 
 const petIcons: Record<string, React.ReactNode> = {
@@ -284,7 +285,13 @@ export default function caregiverProfile() {
 
                     <div className="flex flex-col md:flex-row gap-8 items-start justify-between">
                         <div className="flex gap-6 items-center">
-                            {/* <img src={caregiver?.imageUrl} alt={caregiver?.name} className="w-32 h-32 bg-white rounded-3xl object-cover border-4 border-white/20 shadow-xl" /> */}
+                            <div className="w-32 h-32 rounded-3xl bg-teal-500 border-4 border-white/20 shadow-xl overflow-hidden flex items-center justify-center flex-shrink-0">
+                                {caregiver?.avatar ? (
+                                    <img src={caregiver.avatar} alt={caregiver?.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="text-white text-4xl font-black">{caregiver?.name?.[0]}</div>
+                                )}
+                            </div>
                             <div className="text-white">
                                 <div className="flex items-center gap-3 mb-2">
                                     <h1 className="text-3xl font-black tracking-tight">{caregiver?.name}</h1>
@@ -336,7 +343,7 @@ export default function caregiverProfile() {
                 <div className="flex gap-2 mb-8 overflow-x-auto pb-2 no-scrollbar">
                     {['About', 'Reviews', 'Services'].map(tab => (
                         <button key={tab} onClick={() => setActiveTab(tab)} className={`px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border shadow-sm shrink-0 ${activeTab === tab ? 'bg-white text-teal-600 border-teal-100 ring-2 ring-teal-500/5' : 'bg-slate-100/50 text-slate-400 hover:bg-slate-100 border-transparent'}`}>
-                            {/* {tab === 'Reviews' ? `Reviews (${caregiver?.reviews})` : tab} */}
+                            {tab === 'Reviews' ? `${tab}` : tab}
                         </button>
                     ))}
                 </div>

@@ -219,12 +219,13 @@ const initialUser = {
 
 export default function CaretakerProfile() {
     const [activeTab, setActiveTab] = useState("About");
-    
-    const reviews: any[] = []; // use 'any' type just in case
     const { user, loading } = useAuth();
-        const [profileData, setProfileData] = useState(initialUser);
+    const [profileData, setProfileData] = useState(initialUser);
+    const [avatar, setAvatar] = useState<string | null>(null);
+    const [reviews, setReviews] = useState<any[]>([]);
         useEffect(() => {
         if (user && !loading) {
+            const cp = (user as any).caregiverProfile;
             setProfileData({
             initials: user.name?.[0] || '',
             email: user.email || '',
@@ -232,9 +233,16 @@ export default function CaretakerProfile() {
             phone: user.phone || '',
             location: user.location || '',
             biography: user.biography || '',
-            dailyRate: user.dailyRate || 0,
-            pets: (user as any).pets || [],
+            dailyRate: cp?.dailyRate || 0,
+            pets: cp?.petPreferences || [],
             });
+            setAvatar((user as any).avatar || null);
+
+            if (user.id) {
+                fetch(`/api/reviews?caregiverId=${user.id}`)
+                    .then(r => r.json())
+                    .then(data => setReviews(data.reviews || []));
+            }
         }
         }, [user, loading]);
     if (loading) return <div>Loading...</div>;
@@ -260,8 +268,12 @@ export default function CaretakerProfile() {
                 {/* HEADER */}
                 <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-8 items-start justify-between">
                     <div className="flex gap-6 items-center">
-                        <div className="w-32 h-32 rounded-2xl bg-white/20 border-4 border-white/20 flex items-center justify-center shadow-lg text-white/80">
-                            <User size={48} strokeWidth={1.5} />
+                        <div className="w-32 h-32 rounded-2xl bg-white/20 border-4 border-white/20 flex items-center justify-center shadow-lg text-white/80 overflow-hidden">
+                            {avatar ? (
+                                <img src={avatar} alt={profileData.name} className="w-full h-full object-cover" />
+                            ) : (
+                                <User size={48} strokeWidth={1.5} />
+                            )}
                         </div>
                         <div className="text-white">
                             <div className="flex items-center gap-3 mb-2">
@@ -279,7 +291,9 @@ export default function CaretakerProfile() {
                                 <span className="flex items-center gap-1">
                                     <Star size={14} className="text-yellow-300" fill="currentColor" />
                                     <span className="leading-none pt-px">
-                                        {reviews.length > 0 ? `4.9 (${reviews.length} Reviews)` : "No ratings yet"}
+                                        {reviews.length > 0
+                                            ? `${(reviews.reduce((s: number, r: any) => s + r.rating, 0) / reviews.length).toFixed(1)} (${reviews.length} Reviews)`
+                                            : "No ratings yet"}
                                     </span>
                                 </span>
                             </div>
@@ -330,7 +344,7 @@ export default function CaretakerProfile() {
                         <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
                             <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-4 text-left">Biography</h2>
                             <p className="text-sm text-slate-600 leading-relaxed">
-                                {user?.biography || "No biography available."}
+                                {profileData.biography || "No biography available."}
                             </p>
                         </div>
                     )}
@@ -362,21 +376,23 @@ export default function CaretakerProfile() {
                                                     {/* User Info & Avatar */}
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-10 h-10 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center font-black text-sm border border-teal-100">
-                                                            {review.user.charAt(0)} {/* Grabs the first letter of their name */}
+                                                            {review.fromUser.name.charAt(0)}
                                                         </div>
                                                         <div>
-                                                            <h4 className="font-black text-slate-900 text-sm">{review.user}</h4>
-                                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{review.date}</p>
+                                                            <h4 className="font-black text-slate-900 text-sm">{review.fromUser.name}</h4>
+                                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+                                                                {new Date(review.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                            </p>
                                                         </div>
                                                     </div>
 
                                                     {/* Stars */}
                                                     <div className="flex gap-0.5 text-amber-400">
                                                         {[...Array(5)].map((_, i) => (
-                                                            <Star 
-                                                                key={i} 
-                                                                size={14} 
-                                                                fill={i < review.rating ? "currentColor" : "none"} 
+                                                            <Star
+                                                                key={i}
+                                                                size={14}
+                                                                fill={i < review.rating ? "currentColor" : "none"}
                                                                 className={i < review.rating ? "text-amber-400" : "text-slate-200"}
                                                             />
                                                         ))}
@@ -385,7 +401,7 @@ export default function CaretakerProfile() {
 
                                                 {/* Review Text */}
                                                 <p className="text-slate-600 text-sm leading-relaxed font-medium flex-1 italic text-left">
-                                                    "{review.text}"
+                                                    "{review.comment || '—'}"
                                                 </p>
                                             </div>
                                         ))}

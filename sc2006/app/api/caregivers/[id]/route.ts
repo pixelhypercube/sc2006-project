@@ -10,10 +10,20 @@ export async function GET(
     const { id } = await params;
     const caregiver = await prisma.caregiverProfile.findUnique({
       where: { id },
-    //   include: {
-    //     reviews: true,
-    //     services: true
-    //   }
+      select: {
+        id: true,
+        name: true,
+        biography: true,
+        dailyRate: true,
+        location: true,
+        experienceYears: true,
+        verified: true,
+        averageRating: true,
+        totalReviews: true,
+        completedBookings: true,
+        createdAt: true,
+        updatedAt: true,
+      }
     });
 
     if (!caregiver) {

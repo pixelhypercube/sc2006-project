@@ -46,22 +46,16 @@ export async function GET(request: Request, { params }: Params) {
       include: {
         bookings: {
           include: {
-            booking: {
-              include: {
-                caregiver: {
-                  select: {
-                    id: true,
-                    name: true,
-                    avatar: true,
-                  }
-                }
+            caregiver: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
               }
             }
           },
           orderBy: {
-            booking: {
-              startDate: 'desc'
-            }
+            startDate: 'desc'
           }
         }
       }
@@ -77,7 +71,7 @@ export async function GET(request: Request, { params }: Params) {
     // Format response
     const formattedPet = {
       ...pet,
-      bookings: pet.bookings.map(b => b.booking),
+      bookings: pet.bookings,
     };
 
     return NextResponse.json({ pet: formattedPet });
@@ -215,10 +209,8 @@ export async function DELETE(request: Request, { params }: Params) {
       include: {
         bookings: {
           where: {
-            booking: {
-              status: {
-                in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS']
-              }
+            status: {
+              in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS']
             }
           }
         }

@@ -10,6 +10,12 @@ interface Caregiver {
   avatar?: string;
   verified: boolean;
   petsHandled: string[];
+  bookings?: Array<{
+    id: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+  }>;
 }
 
 export function useUsers() {
@@ -32,8 +38,16 @@ export function useUsers() {
       }
       
       const data = await response.json();
-      
-      return data.caregivers;
+
+      // flatten user.avatar → imageUrl
+      return data.caregivers.map((c: any) => ({
+        ...c,
+        imageUrl: c.user?.avatar ?? null,
+        locationCoords: c.user?.latitude && c.user?.longitude
+          ? [c.user.latitude, c.user.longitude]
+          : null,
+        bookings: c.user?.caregiverBookings || [],
+      }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load');
       return [];

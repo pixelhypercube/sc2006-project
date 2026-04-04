@@ -21,7 +21,7 @@ import {
 
 export default function Bookings() {
     const [activeTab, setActiveTab] = useState("active");
-    const [reviewCaregiver, setReviewCaregiver] = useState<string | null>(null);
+    const [reviewCaregiver, setReviewCaregiver] = useState<{ id: string; name: string } | null>(null);
     const [bookings, setBookings] = useState<any[]>([]);
     const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
     const { user } = useAuth();
@@ -41,13 +41,13 @@ export default function Bookings() {
         const mappedBookings = (data || []).map((b: any) => ({
             id: b.id,
             petName: b.pet?.name ?? 'Unknown Pet',
+            caregiverId: b.caregiver?.id ?? '',
             caregiverName: b.caregiver?.name ?? 'Unknown Caregiver',
             dates: `${new Date(b.startDate).toLocaleDateString()} - ${new Date(b.endDate).toLocaleDateString()}`,
-            location: 'In Home', // Default location
+            location: 'In Home',
             price: b.totalPrice ?? 0,
             status: b.status,
-            paymentStatus: b.paymentStatus || null,
-            paymentAmount: b.paymentAmount || null,
+            hasReview: !!b.review,
         }));
 
         setBookings(mappedBookings);
@@ -188,13 +188,18 @@ export default function Bookings() {
                                         </Link>
                                     )}
 
-                                    {booking.status === "Completed" && (
-                                        <Link 
-                                            href="/owner/rating"
+                                    {booking.status === "COMPLETED" && !booking.hasReview && (
+                                        <button
+                                            onClick={() => setReviewCaregiver({ id: booking.id, name: booking.caregiverName })}
                                             className="flex-1 px-8 py-3.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-100 transition-all text-center flex items-center justify-center gap-2 active:scale-95"
                                         >
                                             <Star size={16} fill="currentColor" /> Leave Review
-                                        </Link>
+                                        </button>
+                                    )}
+                                    {booking.status === "COMPLETED" && booking.hasReview && (
+                                        <span className="flex-1 px-8 py-3.5 bg-slate-50 text-slate-400 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-center flex items-center justify-center gap-2">
+                                            <Star size={16} fill="currentColor" /> Reviewed
+                                        </span>
                                     )}
                                 </div>
                             </div>
@@ -216,9 +221,11 @@ export default function Bookings() {
 
             {/* REVIEW MODAL */}
             {reviewCaregiver && (
-                <ReviewModal 
-                    caregiverName={reviewCaregiver} 
-                    onClose={() => setReviewCaregiver(null)} 
+                <ReviewModal
+                    bookingId={reviewCaregiver.id}
+                    caregiverName={reviewCaregiver.name}
+                    onClose={() => setReviewCaregiver(null)}
+                    onSubmitted={loadBookings}
                 />
             )}
         </div>

@@ -28,6 +28,12 @@ interface Caregiver {
   imageUrl?: string;
   petsHandled?: string[];
   locationCoords?: [number,number];
+  bookings?: Array<{
+    id: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+  }>;
 }
 
 const SG_REGIONS: Record<string, number[]> = {
@@ -63,10 +69,6 @@ const MapComponent = dynamic(
 export default function SearchCaregivers() {
     const { fetchCaregivers } = useUsers();
     const [allCaregivers, setAllCaregivers] = useState<Caregiver[]>([]);
-    const [displayedCaregivers, setDisplayedCaregivers] = useState<Caregiver[]>([]);
-    const [filters, setFilters] = useState({
-        location: ""
-    });
     const { user, loading: authLoading } = useAuth();
     const [loading, setLoading] = useState(false);
 
@@ -74,70 +76,59 @@ export default function SearchCaregivers() {
     const [locationInput, setLocationInput] = useState("");
     const [locationCoords, setLocationCoords] = useState<[number, number]>([0,0]);
     const [isLocating, setIsLocating] = useState(false);
-    const [searchName, setSearchName] = useState("");
     const [showLocationDropdown, setShowLocationDropdown] = useState(false);
     const [minDistance, setMinDistance] = useState(5);
     const [petTypes, setPetTypes] = useState<string[]>([]);
     const [minYearsExperience, setMinYearsExperience] = useState(0);
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-    
+    const [searchTrigger, setSearchTrigger] = useState(0);
+
     useEffect(() => {
     const loadCaregivers = async () => {
       setLoading(true);
         try {
-            const data = await fetchCaregivers(); // No params = all caregivers
+            const data = await fetchCaregivers();
             setAllCaregivers(data);
-            setDisplayedCaregivers(data);
         } catch (error) {
             console.error('Failed to load caregivers:', error);
         } finally {
             setLoading(false);
         }
         };
-        
+
         loadCaregivers();
     }, []);
 
     const getDistance = (p1: number[], p2: number[]) => {
-        const distanceInDegrees = Math.sqrt((p2[0]-p1[0])**2 +(p2[1]-p1[1])**2);
-        return distanceInDegrees * 111;
+        const toRad = (deg: number) => deg * (Math.PI / 180);
+        const R = 6371; // Earth's radius in km
+        const dLat = toRad(p2[0] - p1[0]);
+        const dLon = toRad(p2[1] - p1[1]);
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(p1[0])) * Math.cos(toRad(p2[0])) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
     }
 
     const getFilteredCaregivers = useMemo(() => {
-        return displayedCaregivers.filter(caregiver => {
-        // Name match from search
-        if (searchName && caregiver.name !== searchName) return false;
-
-        // Text search match (If user is typing but hasn't picked a dropdown item)
-        if (!searchName && locationInput) {
-            const match = caregiver.name.toLowerCase().includes(locationInput.toLowerCase()) || 
-                          caregiver.location.toLowerCase().includes(locationInput.toLowerCase());
-            if (!match) return false;
-        }
-
-        // API Location filter (HEAD logic)
-        if (filters.location && !caregiver.location.toLowerCase().includes(filters.location.toLowerCase())) {
-            return false;
-        }
-
-        // Distance Check (Map logic)
+        return allCaregivers.filter(caregiver => {
+        // Location filter
         const hasLocation = locationCoords[0] !== 0 || locationCoords[1] !== 0;
         if (hasLocation && caregiver.locationCoords) {
             if (getDistance(caregiver.locationCoords, locationCoords) > minDistance) return false;
         }
-
         // Pet type filter
         if (petTypes.length > 0) {
             const hasPet = petTypes.every(pet => caregiver.petsHandled?.includes(pet));
             if (!hasPet) return false;
         }
-
         // Experience filter
         if ((caregiver.experience || 0) < minYearsExperience) return false;
-        
         return true;
         });
-    }, [allCaregivers, filters, locationInput, locationCoords, minDistance, petTypes, minYearsExperience, searchName]);
+    }, [allCaregivers, locationInput, locationCoords, minDistance, petTypes, minYearsExperience, searchTrigger]);
 
     const handleMapClick = (coords: [number, number]) => {
         const lat = coords[0].toFixed(4);
@@ -172,77 +163,14 @@ export default function SearchCaregivers() {
     const handleSelectRegion = (region: string) => {
         setLocationInput(region);
         setLocationCoords(SG_REGIONS[region] as [number, number]);
-
-        // update to server
-        setFilters({ location: region });
-        fetchCaregivers({ location: region }).then(data => setDisplayedCaregivers(data || []));
-        
-        setSearchName(""); 
         setShowLocationDropdown(false);
     };
 
     const handleSelectCaregiver = (cg: any) => {
         setLocationInput(cg.name);
         if (cg.locationCoords) setLocationCoords(cg.locationCoords);
-        setSearchName(cg.name);
         setShowLocationDropdown(false);
     };
-
-    // if (loading) return <div className="p-20 text-center font-bold text-teal-600">Loading map and caregivers...</div>;
-
-    // useEffect(() => {
-    //     const timeoutId = setTimeout(async () => {
-    //     if (filters.location != "") {
-    //         // Server-side search for complex filters
-    //         setLoading(true);
-    //         try {
-    //         // const params = new URLSearchParams({
-    //         //     location: filters.location,
-    //         //     petType: filters.petType,
-    //         //     ...(filters.minRating && { minRating: filters.minRating }),
-    //         //     ...(filters.minPrice && { minPrice: filters.minPrice }),
-    //         //     ...(filters.maxPrice && { maxPrice: filters.maxPrice })
-    //         // });
-            
-    //         const data = await fetchCaregivers(filters);
-    //         setDisplayedCaregivers(data);
-    //         } catch (error) {
-    //         console.error('Search failed:', error);
-    //         } finally {
-    //         setLoading(false);
-    //         }
-    //     } else {
-    //         // No filters = show all
-    //         setDisplayedCaregivers(allCaregivers);
-    //     }
-    //     }, 500); // Debounce 500ms
-
-    //     return () => clearTimeout(timeoutId);
-    // }, []);
-
-    const handleFilterChange = useCallback( async() => {
-        console.log('Applying filters:', filters);
-        setLoading(true);
-        try {
-            console.log(filters.location)
-            if (filters.location != "") {
-                setLoading(true);
-                const data = await fetchCaregivers(filters);
-                console.log('Filtered caregivers:', data);
-                setDisplayedCaregivers(data);
-                }
-            else {
-                // No filters = show all
-                console.log('No filters applied, showing all caregivers');
-                setDisplayedCaregivers(allCaregivers);
-            }
-        } catch (error) {
-            console.error('Search failed:', error);
-        } finally {
-            setFilters({location: ""});
-            setLoading(false);
-        }
-        }, [filters, allCaregivers, fetchCaregivers]);
 
     if (loading) return <div>Loading...</div>;
     return (
@@ -263,11 +191,13 @@ export default function SearchCaregivers() {
                     </p>
 
                     {/* WARNING: COMMENT THIS OUT WHEN EDITING OTHER THINGS CAUSE WE DON'T WANNA SPAM TOO MANY API CALLS TO data.gov.sg */}
-                    <MapComponent 
+                    <MapComponent
                     userLocation={locationCoords}
                     onMapClick={handleMapClick}
                     caregivers={getFilteredCaregivers}
-                    searchRadius={minDistance}/>
+                    searchRadius={minDistance}
+                    minDistance={minDistance}
+                    />
                 </div>
 
                 <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-6 mb-12 flex flex-col lg:flex-row gap-5 items-center">
@@ -283,7 +213,6 @@ export default function SearchCaregivers() {
                             value={locationInput}
                             onChange={(e) => {
                                 setLocationInput(e.target.value);
-                                setSearchName("");
                                 setShowLocationDropdown(true);
                             }}
                             onFocus={() => setShowLocationDropdown(true)}
@@ -399,17 +328,13 @@ export default function SearchCaregivers() {
                             </div>
                         )}
                     </div>
-                    {/* <div className="flex-1 w-full relative group">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-teal-600 transition-colors">
-                            <Calendar size={20} />
-                        </span>
-                        <input 
-                            type="text" 
-                            placeholder="Select dates..." 
-                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-base font-medium focus:outline-none focus:border-teal-500 focus:bg-white transition-all" 
-                        />
-                    </div> */}
-                    <button onClick={handleFilterChange} className="w-full lg:w-auto bg-teal-600 hover:bg-teal-700 text-white font-black uppercase tracking-widest text-xs py-4 px-10 rounded-2xl transition-all shadow-lg shadow-teal-600/20 flex items-center justify-center gap-2 active:scale-95">
+                    <button
+                        onClick={() => {
+                            setShowLocationDropdown(false);
+                            setSearchTrigger(prev => prev + 1);
+                        }}
+                        className="w-full lg:w-auto bg-teal-600 hover:bg-teal-700 text-white font-black uppercase tracking-widest text-xs py-4 px-10 rounded-2xl transition-all shadow-lg shadow-teal-600/20 flex items-center justify-center gap-2 active:scale-95"
+                    >
                         <Search size={16} strokeWidth={3} /> Search
                     </button>
                 </div>
@@ -418,13 +343,13 @@ export default function SearchCaregivers() {
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight">
                         {getFilteredCaregivers.length} Caregivers available
                     </h2>
-                    <button 
+                    <button
                         onClick={() => setIsFilterModalOpen(true)}
                         className="flex items-center gap-2 bg-white px-5 py-3 rounded-2xl border border-slate-200 shadow-sm hover:border-teal-500 hover:text-teal-600 transition-all font-bold text-sm text-slate-700"
                     >
                         <SlidersHorizontal size={18} />
                         Filters
-                        
+
                         {/* show a green dot if they changed the default radius */}
                         {minDistance !== 5 && (
                             <span className="w-2 h-2 rounded-full bg-teal-500 ml-1"></span>
@@ -434,7 +359,7 @@ export default function SearchCaregivers() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {getFilteredCaregivers.map(caregiver => (
-                        <CaretakerCard 
+                        <CaretakerCard
                             id={caregiver.id}
                             key={caregiver.id}
                             name={caregiver.name}
@@ -443,7 +368,7 @@ export default function SearchCaregivers() {
                             rating={5}
                             reviews={5}
                             price={caregiver.dailyRate}
-                            imageUrl="image"
+                            imageUrl={caregiver.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(caregiver.name)}`}
                             isVerified={caregiver.verified}
                             petsHandled={caregiver.petsHandled || ["Dogs"]}
                         />
@@ -530,12 +455,12 @@ export default function SearchCaregivers() {
 
                         {/* Footer / Actions */}
                         <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center gap-4">
-                            <button 
+                            <button
                                 onClick={() => {
                                     setMinDistance(5);
                                     setPetTypes([]);
                                     setMinYearsExperience(0);
-                                }} 
+                                }}
                                 className="px-6 py-3 font-bold text-slate-500 hover:text-slate-700 underline underline-offset-4 text-sm"
                             >
                                 Reset to default
@@ -547,7 +472,6 @@ export default function SearchCaregivers() {
                                 Show {getFilteredCaregivers.length} Results
                             </button>
                         </div>
-
                     </div>
                 </div>
             )}

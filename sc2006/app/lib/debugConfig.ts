@@ -9,6 +9,6 @@
  * For production or when backend is ready, set DEBUG_MODE = false
  */
 
-export const DEBUG_MODE = true;
+export const DEBUG_MODE = false;
 
 export const MOCK_ROLE: "GUEST" | "OWNER" | "CAREGIVER" | "ADMIN" = "CAREGIVER";

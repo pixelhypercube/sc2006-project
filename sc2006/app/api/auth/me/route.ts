@@ -36,12 +36,26 @@ export async function GET() {
         role: true,
         phone: true,
         biography: true,
-        dailyRate: true,
         location: true,
         avatar: true,
         verified: true,
         createdAt: true,
-        caregiverProfile: true,
+        caregiverProfile: {
+          select: {
+            dailyRate: true,
+            biography: true,
+            location: true,
+            experienceYears: true,
+            isAcceptingRequests: true,
+            petPreferences: true,
+            dogSizes: true,
+            services: true,
+            verified: true,
+            averageRating: true,
+            totalReviews: true,
+            completedBookings: true,
+          }
+        },
         pets: {
           select: {
             id: true,

@@ -23,7 +23,6 @@ model User {
   status                  AccountStatus @default(ACTIVE)
   phone                   String?       @unique
   biography               String?       @db.Text
-  dailyRate               Float?        @map("daily_rate")
   location                String?
   latitude                Float?
   longitude               Float?
@@ -53,21 +52,24 @@ model User {
 }
 
 model CaregiverProfile {
-  id                String    @id @default(cuid())
-  name              String
-  user              User      @relation(fields: [id], references: [id], onDelete: Cascade)
-  biography         String?   @db.Text
-  dailyRate         Float     @map("daily_rate")
-  petPreferences    PetType[]
-  location          String?
-  experienceYears   Int?      @map("experience_years")
-  verified          Boolean   @default(false)
-  verificationDoc   String?   @map("verification_doc")
-  averageRating     Float     @default(0) @map("average_rating")
-  totalReviews      Int       @default(0) @map("total_reviews")
-  completedBookings Int       @default(0) @map("completed_bookings")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  id                  String    @id @default(cuid())
+  name                String
+  user                User      @relation(fields: [id], references: [id], onDelete: Cascade)
+  biography           String?   @db.Text
+  dailyRate           Float     @map("daily_rate")
+  petPreferences      PetType[]
+  dogSizes            DogSize[]  @map("dog_sizes")
+  services            ServiceType[]
+  location            String?
+  experienceYears     Int?      @map("experience_years")
+  isAcceptingRequests Boolean   @default(true) @map("is_accepting_requests")
+  verified            Boolean   @default(false)
+  verificationDoc     String?   @map("verification_doc")
+  averageRating       Float     @default(0) @map("average_rating")
+  totalReviews        Int       @default(0) @map("total_reviews")
+  completedBookings   Int       @default(0) @map("completed_bookings")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
 
   @@map("caregiver_profiles")
 }
@@ -247,6 +249,37 @@ enum PetType {
   REPTILE
   SMALL_ANIMAL
   OTHER
+}
+
+enum DogSize {
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+enum ServiceType {
+  BOARDING
+  HOUSE_SITTING
+  DROP_IN
+  DAYCARE
+  WALKING
+  BATHING
+  NAILS
+  EARS
+  TEETH
+  DESHEDDING
+  TRAINING_PUPPY
+  TRAINING_OBEDIENCE
+  TRAINING_BEHAVIOR
+  TRAINING_AGILITY
+  MED_ORAL
+  MED_INJECT
+  MED_RECOVERY
+  MED_SENIOR
+  MED_WOUND
+  TAXI
+  WEDDING
+  CLEANING
 }
 
 enum BookingStatus {

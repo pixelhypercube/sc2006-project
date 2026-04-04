@@ -39,6 +39,7 @@ export async function GET(request: Request) {
         caregiver: { select: { id: true, name: true, avatar: true, email: true } },
         payment: { select: { id: true, status: true, amount: true } },
         pet: { select: { id: true, name: true, type: true, breed: true } },
+        review: { select: { id: true, rating: true } },
       },
     });
 
