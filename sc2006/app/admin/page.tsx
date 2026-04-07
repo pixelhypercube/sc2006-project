@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "../components/Navbar";
+import Pagination from "../components/Pagination";
 import { 
     PawPrint, CheckCircle, AlertTriangle, CircleDollarSign, 
     ArrowRight, UserCheck, Settings, MapPin, Star, 
@@ -21,6 +22,8 @@ interface Caregiver {
     averageRating: number;
     totalReviews: number;
     completedBookings: number;
+    petPreferences?: Array<"DOG" | "CAT" | "BIRD" | "REPTILE" | "FISH" | "SMALL_ANIMAL">;
+    createdAt?: Date | string;
     user?: {
         avatar?: string;
     };
@@ -50,14 +53,19 @@ export default function AdminDashboard() {
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [locationFilter, setLocationFilter] = useState("all");
-    const [petTypeFilter, setPetTypeFilter] = useState("all");
-    const [sortBy, setSortBy] = useState("name");
+    type PetType = "DOG" | "CAT" | "BIRD" | "REPTILE" | "FISH" | "SMALL_ANIMAL";
+    const [petTypeFilter, setPetTypeFilter] = useState<"all" | PetType>("all");
+    const [sortBy, setSortBy] = useState("");
     const [sortOrder, setSortOrder] = useState<"asc" | "desc" | "none">("asc");
     
     // Transaction filters
     const [transactionSearch, setTransactionSearch] = useState("");
     const [transactionMethodFilter, setTransactionMethodFilter] = useState("all");
     const [transactionStatusFilter, setTransactionStatusFilter] = useState("all");
+    const [transactionMinAmount, setTransactionMinAmount] = useState<number | undefined>(undefined);
+    const [transactionMaxAmount, setTransactionMaxAmount] = useState<number | undefined>(undefined);
+    const [transactionStartDate, setTransactionStartDate] = useState<Date | undefined>(undefined);
+    const [transactionEndDate, setTransactionEndDate] = useState<Date | undefined>(undefined);
     const [transactionSortBy, setTransactionSortBy] = useState("");
     const [transactionSortOrder, setTransactionSortOrder] = useState<"asc" | "desc" | "none">("none");
     
@@ -65,6 +73,8 @@ export default function AdminDashboard() {
     const [reportSearch, setReportSearch] = useState("");
     const [reportPriorityFilter, setReportPriorityFilter] = useState("all");
     const [reportStatusFilter, setReportStatusFilter] = useState("all");
+    const [reportStartDate, setReportStartDate] = useState<Date | undefined>(undefined);
+    const [reportEndDate, setReportEndDate] = useState<Date | undefined>(undefined);
     const [reportSortBy, setReportSortBy] = useState("");
     const [reportSortOrder, setReportSortOrder] = useState<"asc" | "desc" | "none">("none");
 
@@ -165,8 +175,12 @@ export default function AdminDashboard() {
         caretaker: incident.caretaker || 'Unknown',
         priority: incident.priority === 'HIGH' ? 'High' : incident.priority === 'MEDIUM' ? 'Medium' : 'Low',
         status: incident.status === 'PENDING' ? 'Pending' : incident.status === 'UNDER_REVIEW' ? 'Under Review' : incident.status === 'RESOLVED' ? 'Resolved' : 'Dismissed',
+        datetime: new Date(incident.filed || incident.createdAt || Date.now()),
         filed: new Date(incident.filed).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
     }));
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
 
     // Handle report resolution
     const handleReportResolution = (reportId: string) => {
@@ -215,9 +229,9 @@ export default function AdminDashboard() {
 
     // Sort icon helper
     const SortIcon = ({ column, currentSort, order }: { column: string; currentSort: string; order: "asc" | "desc" | "none" }) => {
-        if (currentSort !== column) return <span className="w-4 h-4 inline-block ml-1 opacity-0">▲</span>;
-        if (order === "asc") return <ChevronUp size={12} className="inline ml-1 text-teal-600" />;
-        if (order === "desc") return <ChevronDown size={12} className="inline ml-1 text-teal-600" />;
+        if (currentSort !== column) return <span className="w-4 h-4 inline-block mx-1 opacity-0">▲</span>;
+        if (order === "asc") return <ChevronUp size={12} className="inline-block mx-1 text-teal-600" />;
+        if (order === "desc") return <ChevronDown size={12} className="inline-block mx-1 text-teal-600" />;
         return null;
     };
 
@@ -246,6 +260,46 @@ export default function AdminDashboard() {
                 return tx.status === transactionStatusFilter;
             }
             return true;
+        })
+        .filter((tx) => {
+            if (transactionMinAmount && transactionMinAmount > 0 && tx.total < transactionMinAmount) {
+                return false;
+            }
+            if (transactionMaxAmount && transactionMaxAmount < 500 && tx.total > transactionMaxAmount) {
+                return false;
+            }
+            return true;
+        })
+        .filter((tx) => {
+            const txDate = new Date(tx.date);
+            if (transactionStartDate && txDate < transactionStartDate) {
+                return false;
+            }
+            if (transactionEndDate && txDate > transactionEndDate) {
+                return false;
+            }
+            return true;
+        })
+        .sort((a, b) => {
+            let comparison = 0;
+            switch (transactionSortBy) {
+                case "id":
+                    comparison = a.id.localeCompare(b.id);
+                    break;
+                case "owner":
+                    comparison = a.owner.localeCompare(b.owner);
+                    break;
+                case "amount":
+                    comparison = a.total - b.total;
+                    break;
+                case "date":
+                    comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+                    break;
+                default:
+                    comparison = new Date(b.date).getTime() - new Date(a.date).getTime();
+                    break;
+            }
+            return transactionSortOrder === "asc" ? comparison : -comparison;
         });
 
     // Filter and sort reports
@@ -274,6 +328,15 @@ export default function AdminDashboard() {
             }
             return true;
         })
+        .filter((report) => {
+            if (reportStartDate && report.datetime < reportStartDate) {
+                return false;
+            }
+            if (reportEndDate && report.datetime > reportEndDate) {
+                return false;
+            }
+            return true;
+        })
         .sort((a, b) => {
             let comparison = 0;
             switch (reportSortBy) {
@@ -284,13 +347,26 @@ export default function AdminDashboard() {
                     comparison = a.reporter.localeCompare(b.reporter);
                     break;
                 case "priority":
-                    comparison = a.priority.localeCompare(b.priority);
+                    // Sort by priority: High > Medium > Low
+                    const priorityOrder: { [key: string]: number } = { "High": 3, "Medium": 2, "Low": 1 };
+                    comparison = (priorityOrder[a.priority] || 0) - (priorityOrder[b.priority] || 0);
                     break;
                 case "status":
                     comparison = a.status.localeCompare(b.status);
                     break;
+                case "datetime":
+                    comparison = a.datetime.getTime() - b.datetime.getTime();
+                    break;
                 default:
-                    comparison = 0;
+                    // Default sort: by priority (High first), then by date (most recent first)
+                    const defaultPriorityOrder: { [key: string]: number } = { "High": 1, "Medium": 2, "Low": 3 };
+                    const priorityComp = (defaultPriorityOrder[a.priority] || 0) - (defaultPriorityOrder[b.priority] || 0);
+                    if (priorityComp !== 0) {
+                        comparison = -priorityComp; // Higher priority first (desc)
+                    } else {
+                        const dateComp = b.datetime.getTime() - a.datetime.getTime();
+                        comparison = -dateComp; // More recent first (desc)
+                    }
             }
             return reportSortOrder === "asc" ? comparison : -comparison;
         });
@@ -320,8 +396,14 @@ export default function AdminDashboard() {
             }
             return true;
         })
+        .filter((ct) => {
+            // Pet type filter
+            if (petTypeFilter !== "all") {
+                return (ct.petPreferences ?? []).includes(petTypeFilter);
+            }
+            return true;
+        })
         .sort((a, b) => {
-            // Sorting logic
             let comparison = 0;
             switch (sortBy) {
                 case "name":
@@ -331,16 +413,31 @@ export default function AdminDashboard() {
                     comparison = (a.experienceYears || 0) - (b.experienceYears || 0);
                     break;
                 case "rate":
-                    comparison = a.dailyRate - b.dailyRate;
+                    comparison = (a.dailyRate || 0) - (b.dailyRate || 0);
                     break;
                 case "location":
                     comparison = (a.location || "").localeCompare(b.location || "");
                     break;
                 default:
-                    comparison = 0;
+                    comparison = (b.totalReviews || 0) - (a.totalReviews || 0);
             }
             return sortOrder === "asc" ? comparison : -comparison;
         });
+
+    // Calculate pagination values
+    const totalItems = activeTab === "caretakers" ? filteredCaretakers.length : 
+                       activeTab === "transactions" ? filteredTransactions.length : 
+                       filteredReports.length;
+    const totalPages = Math.ceil(totalItems / pageSize);
+    const startItem = (currentPage - 1) * pageSize + 1;
+    const endItem = Math.min(currentPage * pageSize, totalItems);
+
+    // Get paginated data based on active tab
+    const paginatedData = activeTab === "caretakers" 
+        ? filteredCaretakers.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+        : activeTab === "transactions"
+        ? filteredTransactions.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+        : filteredReports.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
@@ -348,8 +445,8 @@ export default function AdminDashboard() {
 
             <main className="max-w-7xl mx-auto w-full py-12 px-8">
                 <div className="mb-10">
-                    <h2 className="text-4xl font-black text-slate-900 tracking-tight">System Dashboard</h2>
-                    <p className="text-slate-500 mt-2 text-base font-medium">Real-time status of the care coordination network.</p>
+                    <h2 className="text-4xl font-black text-slate-900 tracking-tight">Admin Dashboard</h2>
+                    <p className="text-slate-500 mt-2 text-base font-medium">Track daily platform performance and pending administrative tasks.</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -378,34 +475,39 @@ export default function AdminDashboard() {
                             Reports ({reports.length})
                         </button>
                     </div>
-
                     {/* Compact Search and Filter Controls */}
                     <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
                         {activeTab === "caretakers" && (
-                            <div className="flex flex-wrap items-center gap-3">
-                                <div className="relative flex-1 min-w-[200px]">
-                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search name, email, location..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                                    />
+                            <div className="flex flex-wrap items-end gap-3">
+                                <div className="flex-1 min-w-50">
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Search</label>
+                                    <div className="relative">
+                                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search name, email, or location..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                                        />
+                                    </div>
                                 </div>
                                 <div className="relative">
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Status</label>
                                     <select
                                         value={statusFilter}
                                         onChange={(e) => setStatusFilter(e.target.value)}
                                         className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none pr-10"
                                     >
                                         <option value="all">All Statuses</option>
-                                        <option value="Approved">Approved</option>
-                                        <option value="Pending">Pending</option>
+                                        <option value="ACTIVE">Active</option>
+                                        <option value="SUSPENDED">Suspended</option>
+                                        <option value="LOCKED">Locked</option>
                                     </select>
-                                    <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    <ChevronDown size={16} className="absolute right-3 top-1/2 translate-y-0.5 text-slate-400 pointer-events-none" />
                                 </div>
                                 <div className="relative">
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Location</label>
                                     <select
                                         value={locationFilter}
                                         onChange={(e) => setLocationFilter(e.target.value)}
@@ -418,79 +520,138 @@ export default function AdminDashboard() {
                                         <option value="Woodlands">Woodlands</option>
                                         <option value="Bedok">Bedok</option>
                                     </select>
-                                    <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    <ChevronDown size={16} className="absolute right-3 top-1/2 translate-y-0.5 text-slate-400 pointer-events-none" />
                                 </div>
                                 <div className="relative">
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Pet Type</label>
                                     <select
                                         value={petTypeFilter}
-                                        onChange={(e) => setPetTypeFilter(e.target.value)}
+                                        onChange={(e) => setPetTypeFilter(e.target.value as "all" | PetType)}
                                         className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none pr-10"
                                     >
                                         <option value="all">All Pets</option>
-                                        <option value="Dogs">Dogs</option>
-                                        <option value="Cats">Cats</option>
-                                        <option value="Birds">Birds</option>
-                                        <option value="Reptiles">Reptiles</option>
-                                        <option value="Fish">Fish</option>
-                                        <option value="Small Mammals">Small Mammals</option>
+                                        <option value="DOG">Dogs</option>
+                                        <option value="CAT">Cats</option>
+                                        <option value="BIRD">Birds</option>
+                                        <option value="REPTILE">Reptiles</option>
+                                        <option value="FISH">Fish</option>
+                                        <option value="SMALL_ANIMAL">Small Mammals</option>
                                     </select>
-                                    <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    <ChevronDown size={16} className="absolute right-3 top-1/2 translate-y-0.5 text-slate-400 pointer-events-none" />
                                 </div>
                             </div>
                         )}
 
                         {activeTab === "transactions" && (
-                            <div className="flex flex-wrap items-center gap-3">
-                                <div className="relative flex-1 min-w-[200px]">
-                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search ID, client, caretaker..."
-                                        value={transactionSearch}
-                                        onChange={(e) => setTransactionSearch(e.target.value)}
-                                        className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                                    />
+                            <div className="flex flex-col">
+                                <div className="flex flex-wrap items-end gap-3">
+                                    <div className="flex-1 min-w-50">
+                                        <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Search</label>
+                                        <div className="relative">
+                                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                            <input
+                                                type="text"
+                                                placeholder="Search ID, client, caretaker or pet..."
+                                                value={transactionSearch}
+                                                onChange={(e) => setTransactionSearch(e.target.value)}
+                                                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                                            /> 
+                                        </div>
+                                    </div>
+                                    <div className="relative">
+                                        <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Payment Method</label>
+                                        <select
+                                            value={transactionMethodFilter}
+                                            onChange={(e) => setTransactionMethodFilter(e.target.value)}
+                                            className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none pr-10"
+                                        >
+                                            <option value="all">All Methods</option>
+                                            <option value="Visa">Visa</option>
+                                            <option value="PayNow">PayNow</option>
+                                        </select>
+                                        <ChevronDown size={16} className="absolute right-3 top-1/2 translate-y-0.5 text-slate-400 pointer-events-none" />
+                                    </div>
+                                    <div className="relative">
+                                        <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Status</label>
+                                        <select
+                                            value={transactionStatusFilter}
+                                            onChange={(e) => setTransactionStatusFilter(e.target.value)}
+                                            className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none pr-10"
+                                        >
+                                            <option value="all">All Statuses</option>
+                                            <option value="Completed">Completed</option>
+                                            <option value="Pending">Pending</option>
+                                        </select>
+                                        <ChevronDown size={16} className="absolute right-3 top-1/2 translate-y-0.5 text-slate-400 pointer-events-none" />
+                                    </div>
+                                    
+                                    {/* Date Range Fields */}
+                                    <div className="flex items-end gap-2">
+                                        <div>
+                                            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Start Date</label>
+                                            <input
+                                                type="date"
+                                                value={transactionStartDate ? transactionStartDate.toISOString().split('T')[0] : ''}
+                                                onChange={(e) => setTransactionStartDate(e.target.value ? new Date(e.target.value) : undefined)}
+                                                className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                                            />
+                                        </div>
+                                        {/* <span className="text-slate-400 pb-2">-</span> */}
+                                        <div>
+                                            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">End Date</label>
+                                            <input
+                                                type="date"
+                                                value={transactionEndDate ? transactionEndDate.toISOString().split('T')[0] : ''}
+                                                onChange={(e) => setTransactionEndDate(e.target.value ? new Date(e.target.value) : undefined)}
+                                                className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Min/Max Fields */}
+                                    <div className="flex items-end gap-2">
+                                        <div>
+                                            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Min ($)</label>
+                                            <input
+                                                type="number"
+                                                value={transactionMinAmount ?? ''}
+                                                onChange={(e) => setTransactionMinAmount(e.target.value === '' ? undefined : Number(e.target.value))}
+                                                className="w-20 sm:w-24 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                                            />
+                                        </div>
+                                        {/* <span className="text-slate-400 pb-2">-</span> */}
+                                        <div>
+                                            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Max ($)</label>
+                                            <input
+                                                type="number"
+                                                value={transactionMaxAmount ?? ''}
+                                                onChange={(e) => setTransactionMaxAmount(e.target.value === '' ? undefined : Number(e.target.value))}
+                                                className="w-20 sm:w-24 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="relative">
-                                    <select
-                                        value={transactionMethodFilter}
-                                        onChange={(e) => setTransactionMethodFilter(e.target.value)}
-                                        className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none pr-10"
-                                    >
-                                        <option value="all">All Methods</option>
-                                        <option value="Visa">Visa</option>
-                                        <option value="PayNow">PayNow</option>
-                                    </select>
-                                    <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                </div>
-                                <div className="relative">
-                                    <select
-                                        value={transactionStatusFilter}
-                                        onChange={(e) => setTransactionStatusFilter(e.target.value)}
-                                        className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none pr-10"
-                                    >
-                                        <option value="all">All Statuses</option>
-                                        <option value="Completed">Completed</option>
-                                        <option value="Pending">Pending</option>
-                                    </select>
-                                    <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                </div>
+                                
                             </div>
                         )}
 
                         {activeTab === "reports" && (
-                            <div className="flex flex-wrap items-center gap-3">
-                                <div className="relative flex-1 min-w-[200px]">
-                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search ID, reporter, title, caretaker..."
-                                        value={reportSearch}
-                                        onChange={(e) => setReportSearch(e.target.value)}
-                                        className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                                    />
+                            <div className="flex flex-wrap items-end gap-3">
+                                <div className="flex-1 min-w-50">
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Search</label>
+                                    <div className="relative">
+                                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search ID, reporter, incident details, title or caretaker..."
+                                            value={reportSearch}
+                                            onChange={(e) => setReportSearch(e.target.value)}
+                                            className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                                        />
+                                    </div>
                                 </div>
                                 <div className="relative">
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Priority</label>
                                     <select
                                         value={reportPriorityFilter}
                                         onChange={(e) => setReportPriorityFilter(e.target.value)}
@@ -501,9 +662,10 @@ export default function AdminDashboard() {
                                         <option value="Medium">Medium</option>
                                         <option value="Low">Low</option>
                                     </select>
-                                    <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    <ChevronDown size={16} className="absolute right-3 top-1/2 translate-y-0.5 text-slate-400 pointer-events-none" />
                                 </div>
                                 <div className="relative">
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Status</label>
                                     <select
                                         value={reportStatusFilter}
                                         onChange={(e) => setReportStatusFilter(e.target.value)}
@@ -513,7 +675,30 @@ export default function AdminDashboard() {
                                         <option value="Pending">Pending</option>
                                         <option value="Resolved">Resolved</option>
                                     </select>
-                                    <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    <ChevronDown size={16} className="absolute right-3 top-1/2 translate-y-0.5 text-slate-400 pointer-events-none" />
+                                </div>
+                                
+                                {/* Date Range Fields */}
+                                <div className="flex items-end gap-2">
+                                    <div>
+                                        <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">Start Date</label>
+                                        <input
+                                            type="date"
+                                            value={reportStartDate ? reportStartDate.toISOString().split('T')[0] : ''}
+                                            onChange={(e) => setReportStartDate(e.target.value ? new Date(e.target.value) : undefined)}
+                                            className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                                        />
+                                    </div>
+                                    <span className="text-slate-400 pb-2">-</span>
+                                    <div>
+                                        <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5">End Date</label>
+                                        <input
+                                            type="date"
+                                            value={reportEndDate ? reportEndDate.toISOString().split('T')[0] : ''}
+                                            onChange={(e) => setReportEndDate(e.target.value ? new Date(e.target.value) : undefined)}
+                                            className="w-32 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -536,32 +721,32 @@ export default function AdminDashboard() {
                         )}
                         {activeTab === "reports" && `Showing ${filteredReports.length} of ${reports.length} report${reports.length !== 1 ? 's' : ''}`}
                     </div>
-                    <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto shadow-sm">
-                        {/* Caretakers Tab - Updated to match image table style precisely without manage buttons */}
+                    <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto shadow-sm mb-3">
+                        {/* Caretakers Tab */}
                         {activeTab === "caretakers" && (
-                            <table className="w-full text-left border-collapse whitespace-nowrap">
-                                <thead>
-                                    <tr className="border-b border-slate-200">
+                            <table className="w-full text-left border-collapse whitespace-nowrap min-w-225">
+                                <thead className="sticky top-0 z-10 bg-slate-50/50">
+                                    <tr className="border-b border-slate-200 bg-slate-50/50">
                                         <th 
-                                            className="py-4 px-6 text-sm font-medium text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
+                                            className="py-4 px-4 sm:px-6 text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
                                             onClick={() => handleCaretakerSort('name')}
                                         >
                                             Caretaker <SortIcon column="name" currentSort={sortBy} order={sortOrder} />
                                         </th>
                                         <th 
-                                            className="py-4 px-6 text-sm font-medium text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
+                                            className="py-4 px-4 sm:px-6 text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
                                             onClick={() => handleCaretakerSort('location')}
                                         >
                                             Location <SortIcon column="location" currentSort={sortBy} order={sortOrder} />
                                         </th>
                                         <th 
-                                            className="py-4 px-6 text-sm font-medium text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
+                                            className="py-4 px-4 sm:px-6 text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
                                             onClick={() => handleCaretakerSort('rate')}
                                         >
                                             Daily Rate <SortIcon column="rate" currentSort={sortBy} order={sortOrder} />
                                         </th>
                                         <th 
-                                            className="py-4 px-6 text-sm font-medium text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
+                                            className="py-4 px-4 sm:px-6 text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
                                             onClick={() => handleCaretakerSort('experience')}
                                         >
                                             Experience <SortIcon column="experience" currentSort={sortBy} order={sortOrder} />
@@ -572,61 +757,55 @@ export default function AdminDashboard() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredCaretakers.map((ct) => (
+                                    {filteredCaretakers.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((ct) => (
                                         <tr key={ct.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                                            <td className="py-4 px-6">
+                                            <td className="py-4 px-4 sm:px-6">
                                                 <div className="flex items-center gap-3">
                                                     <img src={ct.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${ct.name}`} alt={ct.name} className="w-9 h-9 rounded-full object-cover" />
                                                     <div>
                                                         <div className="flex items-center gap-1">
-                                                            <span className="font-bold text-slate-900 text-sm">{ct.name}</span>
+                                                            <span className="font-bold flex gap-1 text-slate-900 text-sm items-center">
+                                                                {ct.name} 
+                                                                {ct.verified && (
+                                                                    <BadgeCheck size={16} className="text-teal-500 shrink-0" fill="currentColor" stroke="white" />
+                                                                )}
+                                                            </span>
                                                         </div>
                                                         <div className="text-xs text-slate-500">{ct.email}</div>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="py-4 px-6">
+                                            <td className="py-4 px-4 sm:px-6">
                                                 <div className="flex items-center gap-1 text-sm text-slate-600">
-                                                    {ct.location ? (
-                                                        <>
-                                                            <MapPin size={14} className="text-slate-400" />
-                                                            {ct.location}
-                                                        </>
-                                                    ) : (
-                                                        <span className="text-slate-400">-</span>
-                                                    )}
+                                                    <MapPin size={14} className="text-slate-400 shrink-0" />
+                                                    {ct.location}
                                                 </div>
                                             </td>
-                                            <td className="py-4 px-6 text-sm font-bold text-slate-900">
-                                                ${ct.dailyRate}/day
+                                            <td className="py-4 px-4 sm:px-6 text-sm font-bold text-slate-900">
+                                                ${ct.dailyRate?.toFixed(2) || '0.00'}/day
                                             </td>
-                                            <td className="py-4 px-6 text-sm font-bold text-slate-900">
-                                                {ct.experienceYears ? `${ct.experienceYears} years` : '-'}
+                                            <td className="py-4 px-4 sm:px-6 text-sm font-bold text-slate-900">
+                                                {ct.experienceYears || 0} years
                                             </td>
-                                            <td className="py-4 px-6">
-                                                <div className="flex items-center gap-1 text-sm text-slate-600">
-                                                    {ct.totalReviews > 0 ? (
-                                                        <>
-                                                            <Star size={14} className="text-amber-400" fill="currentColor" />
-                                                            <span className="font-bold">{ct.averageRating.toFixed(1)}</span>
-                                                        </>
-                                                    ) : (
-                                                        <span className="text-slate-400">No reviews</span>
-                                                    )}
-                                                </div>
+                                            <td className="py-4 px-4 sm:px-6 text-sm font-bold text-slate-900">
+                                                {ct.averageRating.toFixed(1)} ({ct.totalReviews})
                                             </td>
-                                            <td className="py-4 px-6">
-                                                <span className="px-2.5 py-1 rounded text-xs uppercase font-bold bg-green-100 text-green-700">
-                                                    Verified
+                                            <td className="py-4 px-4 sm:px-6">
+                                                <span className={`px-2.5 py-1 rounded-2xl text-xs uppercase font-bold border ${
+                                                    ct.verified
+                                                        ? "bg-green-100 text-green-700 border-green-200"
+                                                        : "bg-amber-100 text-amber-700 border-amber-200"
+                                                }`}>
+                                                    {ct.verified ? "Verified" : "Unverified"}
                                                 </span>
                                             </td>
-                                            <td className="py-4 px-6">
-                                                <Link 
-                                                    href="/admin/verified"
+                                            <td className="py-4 px-4 sm:px-6">
+                                                <button 
+                                                    onClick={() => window.location.href = `/admin/verified?search=${encodeURIComponent(ct.email ?? "")}`}
                                                     className="bg-teal-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-teal-800 transition-colors"
                                                 >
                                                     View
-                                                </Link>
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
@@ -634,58 +813,63 @@ export default function AdminDashboard() {
                             </table>
                         )}
 
+                        {/* Transactions Tab */}
                         {activeTab === "transactions" && (
-                            <table className="w-full text-left border-collapse min-w-225">
-                                <thead>
+                            <table className="w-full text-left border-collapse whitespace-nowrap min-w-200">
+                                <thead className="sticky top-0 z-10 bg-slate-50/50">
                                     <tr className="border-b border-slate-200 bg-slate-50/50">
                                         <th 
-                                            className="py-4 px-6 text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
+                                            className="py-4 px-4 sm:px-6 text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
                                             onClick={() => handleTransactionSort('id')}
                                         >
                                             Transaction ID <SortIcon column="id" currentSort={transactionSortBy} order={transactionSortOrder} />
                                         </th>
                                         <th 
-                                            className="py-4 px-6 text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
-                                            onClick={() => handleTransactionSort('client')}
+                                            className="py-4 px-4 sm:px-6 text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
+                                            onClick={() => handleTransactionSort('owner')}
                                         >
-                                            Owner / Caretaker <SortIcon column="client" currentSort={transactionSortBy} order={transactionSortOrder} />
+                                            Owner / Caretaker <SortIcon column="owner" currentSort={transactionSortBy} order={transactionSortOrder} />
                                         </th>
-                                        <th className="py-4 px-6 text-xs font-black uppercase text-slate-500">Pet / Dates</th>
+                                        <th className="py-4 px-4 sm:px-6 text-xs font-black uppercase text-slate-500">Pet / Dates</th>
                                         <th 
-                                            className="py-4 px-6 text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
+                                            className="py-4 px-4 sm:px-6 text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
                                             onClick={() => handleTransactionSort('amount')}
                                         >
                                             Amount <SortIcon column="amount" currentSort={transactionSortBy} order={transactionSortOrder} />
                                         </th>
-                                        <th className="py-4 px-6 text-xs font-black uppercase text-slate-500">Status</th>
+                                        <th className="py-4 px-4 sm:px-6 text-xs font-black uppercase text-slate-500">Method</th>
+                                        <th 
+                                            className="py-4 px-4 sm:px-6 text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
+                                            onClick={() => handleTransactionSort('date')}
+                                        >
+                                            Date & Time <SortIcon column="date" currentSort={transactionSortBy} order={transactionSortOrder} />
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredTransactions.length > 0 ? filteredTransactions.map((tx) => {
-                                        const startDate = new Date(tx.startDate).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
-                                        const endDate = new Date(tx.endDate).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
-                                        return (
-                                        <tr key={tx.id} className="border-b border-slate-100 hover:bg-slate-50">
-                                            <td className="py-4 px-6 text-sm font-bold text-slate-900">{tx.id}</td>
-                                            <td className="py-4 px-6">
-                                                <p className="text-sm font-bold text-slate-900">{tx.owner}</p>
-                                                <p className="text-xs text-slate-500">Care by: {tx.caretaker}</p>
-                                            </td>
-                                            <td className="py-4 px-6">
-                                                <p className="text-sm font-medium">{tx.pet}</p>
-                                                <p className="text-xs text-slate-400">{startDate} - {endDate}</p>
-                                            </td>
-                                            <td className="py-4 px-6 text-sm font-black text-slate-900">${tx.total.toFixed(2)}</td>
-                                            <td className="py-4 px-6">
-                                                <span className="px-2.5 py-1 rounded text-xs uppercase font-bold bg-green-100 text-green-700">
-                                                    {tx.status}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    );
-                                    }) : (
+                                    {filteredTransactions.length > 0 ? (
+                                        filteredTransactions.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((tx) => (
+                                            <tr key={tx.id} className="border-b border-slate-100 hover:bg-slate-50">
+                                                <td className="py-4 px-4 sm:px-6 text-sm font-bold text-slate-900">{tx.id}</td>
+                                                <td className="py-4 px-4 sm:px-6">
+                                                    <p className="text-sm font-bold text-slate-900">{tx.owner}</p>
+                                                    <p className="text-xs text-slate-500">Care by: {tx.caretaker}</p>
+                                                </td>
+                                                <td className="py-4 px-4 sm:px-6">
+                                                    <p className="text-sm font-medium">{tx.pet}</p>
+                                                    <p className="text-xs text-slate-400">{new Date(tx.startDate).toLocaleDateString()} - {new Date(tx.endDate).toLocaleDateString()}</p>
+                                                </td>
+                                                <td className="py-4 px-4 sm:px-6 text-sm font-black text-slate-900">${tx.total.toFixed(2)}</td>
+                                                <td className="py-4 px-4 sm:px-6 text-xs font-bold text-slate-500 uppercase">{tx.method}</td>
+                                                <td className="py-4 px-4 sm:px-6">
+                                                    <p className="text-sm font-medium text-slate-700">{new Date(tx.date).toLocaleDateString()}</p>
+                                                    <p className="text-xs text-slate-500 uppercase">{new Date(tx.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
                                         <tr>
-                                            <td colSpan={5} className="py-12 px-6 text-center text-slate-500">
+                                            <td colSpan={6} className="py-12 px-6 text-center text-slate-500">
                                                 No transactions found
                                             </td>
                                         </tr>
@@ -694,56 +878,78 @@ export default function AdminDashboard() {
                             </table>
                         )}
 
+                        {/* Reports Tab */}
                         {activeTab === "reports" && (
-                             <table className="w-full text-left border-collapse min-w-225">
-                                <thead>
+                             <table className="w-full text-left border-collapse min-w-212.5">
+                                <thead className="sticky top-0 z-10 bg-slate-50/50">
                                     <tr className="border-b border-slate-200 bg-slate-50/50">
                                         <th 
-                                            className="py-4 px-6 text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
+                                            className="py-4 px-4 sm:px-6 whitespace-nowrap text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
                                             onClick={() => handleReportSort('id')}
                                         >
                                             ID <SortIcon column="id" currentSort={reportSortBy} order={reportSortOrder} />
                                         </th>
                                         <th 
-                                            className="py-4 px-6 text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
+                                            className="py-4 px-4 sm:px-6 whitespace-nowrap text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
                                             onClick={() => handleReportSort('reporter')}
                                         >
                                             Reporter <SortIcon column="reporter" currentSort={reportSortBy} order={reportSortOrder} />
                                         </th>
-                                        <th className="py-4 px-6 text-xs font-black uppercase text-slate-500">Incident Details</th>
+                                        <th className="py-4 px-4 sm:px-6 text-xs font-black uppercase text-slate-500">Incident Details</th>
                                         <th 
-                                            className="py-4 px-6 text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
+                                            className="py-4 px-4 sm:px-6 whitespace-nowrap text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
+                                            onClick={() => handleReportSort('datetime')}
+                                        >
+                                            Filed <SortIcon column="datetime" currentSort={reportSortBy} order={reportSortOrder} />
+                                        </th>
+                                        <th 
+                                            className="py-4 px-4 sm:px-6 whitespace-nowrap text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
                                             onClick={() => handleReportSort('priority')}
                                         >
                                             Priority <SortIcon column="priority" currentSort={reportSortBy} order={reportSortOrder} />
                                         </th>
                                         <th 
-                                            className="py-4 px-6 text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
+                                            className="py-4 px-4 sm:px-6 whitespace-nowrap text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
                                             onClick={() => handleReportSort('status')}
                                         >
                                             Status <SortIcon column="status" currentSort={reportSortBy} order={reportSortOrder} />
                                         </th>
-                                        <th className="py-4 px-6 text-xs font-black uppercase text-slate-500">Actions</th>
+                                        <th className="py-4 px-4 sm:px-6 whitespace-nowrap text-xs font-black uppercase text-slate-500">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredReports.map((report) => (
+                                    {filteredReports.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((report) => (
                                         <tr key={report.id} className="border-b border-slate-100 hover:bg-slate-50">
-                                            <td className="py-4 px-6 text-sm font-bold text-slate-900">{report.id}</td>
-                                            <td className="py-4 px-6 text-sm font-bold text-slate-900">{report.reporter}</td>
-                                            <td className="py-4 px-6">
-                                                <div className="font-bold text-slate-900 italic text-sm">"{report.title}"</div>
-                                                <div className="text-xs text-slate-500">Against: {report.caretaker}</div>
+                                            <td className="py-4 px-4 sm:px-6 whitespace-nowrap text-sm font-bold text-slate-900">{report.id}</td>
+                                            <td className="py-4 px-4 sm:px-6 whitespace-nowrap text-sm font-bold text-slate-900">{report.reporter}</td>
+                                            {/* Given a minimum width so it doesn't crush, but allowed to wrap */}
+                                            <td className="py-4 px-4 sm:px-6 min-w-62.5 max-w-75">
+                                                <div className="font-bold text-slate-900 italic text-sm line-clamp-2">"{report.title}"</div>
+                                                <div className="text-xs text-slate-500 mt-0.5">Against: {report.caretaker}</div>
                                             </td>
-                                            <td className="py-4 px-6">
-                                                <span className="px-3 py-1 text-[10px] font-black uppercase bg-red-100 text-red-700 rounded">
+                                            <td className="py-4 px-4 sm:px-6 whitespace-nowrap">
+                                                <p className="text-sm font-medium text-slate-700">{report.datetime.toLocaleDateString()}</p>
+                                                <p className="text-xs text-slate-500 uppercase">{report.datetime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
+                                            </td>
+                                            <td className="py-4 px-4 sm:px-6 whitespace-nowrap">
+                                                <span className={`px-3 py-1 text-xs font-black uppercase rounded-2xl border ${
+                                                    report.priority.toLowerCase() === "high" ? "bg-red-50 text-red-700 border-red-200" :
+                                                    report.priority.toLowerCase() === "medium" ? "bg-orange-50 text-orange-700 border-orange-200" :
+                                                    "bg-blue-50 text-blue-700 border-blue-200"
+                                                }`}>
                                                     {report.priority}
                                                 </span>
                                             </td>
-                                            <td className="py-4 px-6 text-xs font-bold text-orange-600 uppercase flex items-center gap-1 mt-4">
-                                                <Clock size={14}/> {report.status}
+                                            <td className="py-4 px-4 sm:px-6 whitespace-nowrap">
+                                                <span className={`px-3 py-1 rounded-2xl text-xs uppercase font-bold border ${
+                                                    report.status.toLowerCase() === "resolved" ? "bg-green-100 text-green-700 border-green-200" : 
+                                                    report.status.toLowerCase() === "pending" ? "bg-amber-100 text-amber-700 border-amber-200" : 
+                                                    "bg-red-100 text-red-700 border-red-200"
+                                                }`}>
+                                                    {report.status}
+                                                </span>
                                             </td>
-                                            <td className="py-4 px-6">
+                                            <td className="py-4 px-4 sm:px-6 whitespace-nowrap">
                                                 <button 
                                                     onClick={() => window.location.href = `/admin/incidents?search=${report.id}`}
                                                     className="bg-slate-900 text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-colors"
@@ -757,6 +963,20 @@ export default function AdminDashboard() {
                             </table>
                         )}
                     </div>
+                    
+                    {/* Pagination */}
+                    {totalItems > 0 && (
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={setCurrentPage}
+                            pageSize={pageSize}
+                            onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+                            totalItems={totalItems}
+                            startItem={startItem}
+                            endItem={endItem}
+                        />
+                    )}
                 </div>
             </main>
         </div>

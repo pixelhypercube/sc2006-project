@@ -23,7 +23,8 @@ import {
     AlertTriangle,
     Shield,
     UserCheck,
-    Briefcase
+    Briefcase,
+    Banknote
 } from "lucide-react";
 
 const ownerLinks = [
@@ -43,9 +44,10 @@ const caregiverLinks = [
 ];
 
 const adminLinks = [
-    { name: "Admin Home", href: "/admin", icon: <Shield size={18}/> },
-    { name: "Verifications", href: "/admin/verified", icon: <UserCheck size={18}/> },
-    { name: "Incidents", href: "/admin/incidents", icon: <AlertTriangle size={18}/> }, 
+    { name: "Admin Dashboard", href: "/admin", icon: <Shield size={18}/> },
+    { name: "Verify Caregivers", href: "/admin/verified", icon: <UserCheck size={18}/> },
+    { name: "Refund Requests", href: "/admin/refunds", icon: <Banknote size={18}/> }, 
+    { name: "Incident Management", href: "/admin/incidents", icon: <AlertTriangle size={18}/> }, 
 ];
 
 const mockNotifications = [
