@@ -73,16 +73,16 @@ export default function FiltersModal({ onClose, onApply, currentFilters }: Filte
                         </div>
                         <input 
                             type="range" 
-                            min="20" 
-                            max="200" 
+                            min="10" 
+                            max="500" 
                             step="5"
                             value={maxPrice}
                             onChange={(e) => setMaxPrice(Number(e.target.value))}
                             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-teal-500"
                         />
                         <div className="flex justify-between text-xs text-gray-400 mt-2">
-                            <span>$20</span>
-                            <span>$200+</span>
+                            <span>$10</span>
+                            <span>$500+</span>
                         </div>
                     </div>
 

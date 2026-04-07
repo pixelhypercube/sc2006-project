@@ -70,9 +70,9 @@ export default function Dashboard() {
 
     // FILTERS DIALOG OPTIONS
     const [filters, setFilters] = useState({
-        maximumPrice:100,
+        maximumPrice:200, // Temporarily increase to see all caregivers
         minExperience:"All",
-        verified:true
+        verified:false // Temporarily show all caregivers regardless of verification
     });
 
     // CALENDAR DATE OPTIONS
@@ -108,6 +108,8 @@ export default function Dashboard() {
                 if (res.ok) {
                     const data = await res.json();
                     setCaretakers(data.caregivers ?? []);
+                } else {
+                    console.error('API Error:', res.status, res.statusText);
                 }
             } catch (e) {
                 console.error('Failed to load caregivers', e);

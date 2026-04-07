@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import Link from "next/link";
@@ -16,17 +16,27 @@ import {
   Car,
   Briefcase,
   FileText,
-  ChevronDown
+  ChevronDown,
+  Loader
 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 
-const caretakers = [
-    { id: 1, name: "Sarah Chen", email: "sarah.chen@example.com", location: "Bukit Batok", pets: ["Dogs", "Cats"], rate: "$65/day", experience: "5 years", status: "Pending", dropoff: true, img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah", documents: ["NRIC_Front.jpg", "NRIC_Back.jpg", "Pet_Care_Cert.pdf"], availability: "Mar 15 - Apr 30, 2026", biography: "Passionate pet lover with 5 years of experience caring for dogs and cats. Certified in pet first aid and animal behavior." },
-    { id: 2, name: "Mike Tan", email: "mike.tan@example.com", location: "Tampines", pets: ["Birds", "Small Mammals"], rate: "$55/day", experience: "3 years", status: "Pending", dropoff: true, img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Mike", documents: ["NRIC_Front.jpg", "First_Aid_Cert.pdf"], availability: "Apr 1 - Apr 20, 2026", biography: "Specialized in exotic pets and small mammals. Have experience with birds, hamsters, and guinea pigs." },
-    { id: 3, name: "Lisa Wong", email: "lisa.wong@example.com", location: "Jurong East", pets: ["Dogs", "Cats", "Reptiles"], rate: "$75/day", experience: "7 years", status: "Approved", dropoff: false, img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa", documents: ["NRIC_Front.jpg", "NRIC_Back.jpg", "Pet_Care_Cert.pdf", "Background_Check.pdf"], availability: "Mar 10 - May 15, 2026", biography: "Professional pet sitter with extensive experience in all types of pets including reptiles." },
-    { id: 4, name: "James Lee", email: "james.lee@example.com", location: "Woodlands", pets: ["Reptiles", "Fish"], rate: "$80/day", experience: "10 years", status: "Approved", dropoff: true, img: "https://api.dicebear.com/7.x/avataaars/svg?seed=James", documents: ["NRIC_Front.jpg", "Specialty_Cert.pdf"], availability: "Mar 20 - Apr 25, 2026", biography: "Aquarium specialist and reptile expert with over a decade of experience." },
-    { id: 5, name: "Emma Ng", email: "emma.ng@example.com", location: "Bedok", pets: ["Dogs"], rate: "$70/day", experience: "2 years", status: "Rejected", dropoff: false, img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Emma", documents: ["NRIC_Front.jpg", "Incomplete_Form.pdf"], availability: "Mar 25 - Apr 10, 2026", biography: "Dog enthusiast with experience in training and care." },
-];
+interface CaregiverApplication {
+  id: string;
+  name: string;
+  email: string;
+  biography?: string;
+  dailyRate: number;
+  location?: string;
+  experienceYears?: number;
+  petPreferences?: string[];
+  availabilityStartDate?: string;
+  availabilityEndDate?: string;
+  verificationDocs?: string[];
+  avatar?: string;
+  phone?: string;
+  createdAt: string;
+}
 
 export default function VerifiedQueue() {
     const searchParams = useSearchParams();
@@ -35,19 +45,42 @@ export default function VerifiedQueue() {
     // Get initial values from URL params (reads once on load, does not update URL later)
     const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || "");
     const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || "all");
+    
+    // Data states
+    const [applications, setApplications] = useState<CaregiverApplication[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-    // Sort caretakers: Pending first, then Approved, then Rejected
-    const sortedCaretakers = [...caretakers].sort((a, b) => {
-        const priority: Record<string, number> = { 
-            Pending: 1, 
-            Approved: 2, 
-            Rejected: 3 
-        };
+    // Fetch pending applications on mount
+    useEffect(() => {
+      const fetchApplications = async () => {
+        try {
+          setLoading(true);
+          setError(null);
+          const response = await fetch('/api/admin/pending-applications');
+          
+          if (!response.ok) {
+            throw new Error('Failed to fetch applications');
+          }
+          
+          const data = await response.json();
+          setApplications(data.applications || []);
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : 'Failed to load applications';
+          setError(errorMsg);
+          fireToast('danger', 'Error', errorMsg);
+        } finally {
+          setLoading(false);
+        }
+      };
 
-        const priorityA = priority[a.status] ?? 4;
-        const priorityB = priority[b.status] ?? 4;
+      fetchApplications();
+    }, [fireToast]);
 
-        return priorityA - priorityB;
+    // Sort caretakers: by creation date (newest first)
+    const sortedCaretakers = [...applications].sort((a, b) => {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
     // Filter caretakers based on search and filters
@@ -58,53 +91,48 @@ export default function VerifiedQueue() {
             return (
                 caretaker.name.toLowerCase().includes(query) ||
                 caretaker.email.toLowerCase().includes(query) ||
-                caretaker.location.toLowerCase().includes(query) ||
-                caretaker.pets.some(pet => pet.toLowerCase().includes(query))
+                (caretaker.location && caretaker.location.toLowerCase().includes(query)) ||
+                (caretaker.petPreferences && caretaker.petPreferences.some(pet => pet.toLowerCase().includes(query)))
             );
-        }
-        return true;
-    }).filter(caretaker => {
-        // Status filter
-        if (statusFilter !== "all") {
-            return caretaker.status === statusFilter;
         }
         return true;
     });
 
     // Helper for status badge styling
-    const getStatusBadge = (status: string) => {
-        switch(status) {
-            case "Pending":
-                return (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest bg-amber-50 text-amber-700 border border-amber-200">
-                        <ShieldCheck size={12} strokeWidth={3} />
-                        {status}
-                    </span>
-                );
-            case "Approved":
-                return (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest bg-teal-50 text-teal-700 border border-teal-200">
-                        <CheckCircle size={12} strokeWidth={3} />
-                        {status}
-                    </span>
-                );
-            case "Rejected":
-                return (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest bg-red-50 text-red-700 border border-red-200">
-                        <XCircle size={12} strokeWidth={3} />
-                        {status}
-                    </span>
-                );
-            default:
-                return null;
-        }
+    const getStatusBadge = () => {
+        return (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest bg-amber-50 text-amber-700 border border-amber-200">
+                <ShieldCheck size={12} strokeWidth={3} />
+                Pending
+            </span>
+        );
     };
 
-    const handleAction = (id: number, action: 'approve' | 'reject') => {
-        const caretaker = caretakers.find(c => c.id === id);
-        const message = action === 'approve' ? 'Verified Badge Issued' : 'Request Rejected';
-        const description = `${action === 'approve' ? 'Badge' : 'Rejection'} issued for ${caretaker?.name || `ID ${id}`}`;
-        fireToast(action === 'approve' ? 'success' : 'danger', message, description);
+    const handleAction = async (caregiverId: string, action: 'approve' | 'reject') => {
+        try {
+            setActionLoading(caregiverId);
+            const response = await fetch('/api/admin/pending-applications', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action, caregiverId }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to ${action} application`);
+            }
+
+            // Remove the application from the list
+            setApplications(applications.filter(app => app.id !== caregiverId));
+            
+            const message = action === 'approve' ? 'Verified Badge Issued' : 'Request Rejected';
+            const description = action === 'approve' ? 'Caregiver has been approved' : 'Caregiver application has been rejected';
+            fireToast(action === 'approve' ? 'success' : 'danger', message, description);
+        } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : `Failed to ${action} application`;
+            fireToast('danger', 'Error', errorMsg);
+        } finally {
+            setActionLoading(null);
+        }
     };
 
     return (
@@ -138,32 +166,25 @@ export default function VerifiedQueue() {
                                 className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                             />
                         </div>
-
-                        {/* Status Filter */}
-                        <div className="flex items-center gap-2">
-                            <SlidersHorizontal size={16} className="text-slate-400" />
-                            <div className="relative">
-                                <select
-                                    value={statusFilter}
-                                    onChange={(e) => setStatusFilter(e.target.value)}
-                                    className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none pr-10"
-                                >
-                                    <option value="all">All Status</option>
-                                    <option value="Pending">Pending</option>
-                                    <option value="Approved">Approved</option>
-                                    <option value="Rejected">Rejected</option>
-                                </select>
-                                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                            </div>
-                        </div>
                     </div>
                     
                 </div>
 
-                {/* Results Count */}
-                <div className="text-md font-medium italic text-slate-400 ml-auto mb-2">
-                    Showing {filteredCaretakers.length} of {caretakers.length} caregiver{caretakers.length !== 1 ? 's' : ''}
-                </div>
+                {/* Results Count or Loading/Error State */}
+                {loading ? (
+                    <div className="flex items-center justify-center py-16">
+                        <Loader size={24} className="text-teal-600 animate-spin" />
+                        <span className="ml-3 text-slate-600 font-medium">Loading applications...</span>
+                    </div>
+                ) : error ? (
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+                        <p className="text-red-700 font-bold">{error}</p>
+                    </div>
+                ) : (
+                    <>
+                        <div className="text-md font-medium italic text-slate-400 ml-auto mb-2">
+                            Showing {filteredCaretakers.length} of {applications.length} caregiver{applications.length !== 1 ? 's' : ''}
+                        </div>
 
                 <div className="space-y-4">
                     {filteredCaretakers.length > 0 ? filteredCaretakers.map((caretaker) => (
@@ -171,7 +192,7 @@ export default function VerifiedQueue() {
                             {/* Avatar */}
                             <div className="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-slate-100 flex-shrink-0">
                                 <img
-                                    src={caretaker.img}
+                                    src={caretaker.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${caretaker.name}`}
                                     alt={caretaker.name}
                                     className="w-full h-full object-cover"
                                 />
@@ -181,101 +202,108 @@ export default function VerifiedQueue() {
                             <div className="flex-1 space-y-2">
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <h3 className="text-xl font-bold text-slate-900">{caretaker.name}</h3>
-                                    {getStatusBadge(caretaker.status)}
+                                    {getStatusBadge()}
                                 </div>
                                 <p className="text-sm text-slate-500">{caretaker.email}</p>
+                                {caretaker.phone && <p className="text-sm text-slate-500">{caretaker.phone}</p>}
                                 
                                 {/* Metadata Row */}
                                 <div className="flex flex-wrap gap-4 mt-3">
-                                    <div className="flex items-center gap-1.5 text-sm text-slate-600">
-                                        <MapPin size={14} className="text-slate-400" />
-                                        <span>{caretaker.location}</span>
-                                    </div>
+                                    {caretaker.location && (
+                                        <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                                            <MapPin size={14} className="text-slate-400" />
+                                            <span>{caretaker.location}</span>
+                                        </div>
+                                    )}
                                     <div className="flex items-center gap-1.5 text-sm text-slate-600">
                                         <DollarSign size={14} className="text-slate-400" />
-                                        <span>{caretaker.rate}</span>
+                                        <span>${caretaker.dailyRate}/day</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 text-sm text-slate-600">
-                                        <Briefcase size={14} className="text-slate-400" />
-                                        <span>{caretaker.experience}</span>
-                                    </div>
-                                    {caretaker.dropoff && (
-                                        <div className="flex items-center gap-1.5 text-sm text-teal-600">
-                                            <Car size={14} className="text-teal-400" />
-                                            <span>Drop-off Available</span>
+                                    {caretaker.experienceYears !== undefined && (
+                                        <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                                            <Briefcase size={14} className="text-slate-400" />
+                                            <span>{caretaker.experienceYears} years</span>
                                         </div>
                                     )}
                                 </div>
 
                                 {/* Biography */}
-                                <div className="mt-3 bg-slate-50 rounded-xl p-4 border border-slate-100">
-                                    <p className="text-xs font-black text-slate-900 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                        <FileText size={12} className="text-slate-400" /> Biography
-                                    </p>
-                                    <p className="text-sm text-slate-600 leading-relaxed">{caretaker.biography}</p>
-                                </div>
+                                {caretaker.biography && (
+                                    <div className="mt-3 bg-slate-50 rounded-xl p-4 border border-slate-100">
+                                        <p className="text-xs font-black text-slate-900 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                            <FileText size={12} className="text-slate-400" /> Biography
+                                        </p>
+                                        <p className="text-sm text-slate-600 leading-relaxed">{caretaker.biography}</p>
+                                    </div>
+                                )}
 
                                 {/* Pets Tags */}
-                                <div className="flex flex-wrap gap-2 mt-3">
-                                    {caretaker.pets.map((pet, idx) => (
-                                        <span key={idx} className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-full">
-                                            {pet}
-                                        </span>
-                                    ))}
-                                </div>
+                                {caretaker.petPreferences && caretaker.petPreferences.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-3">
+                                        {caretaker.petPreferences.map((pet, idx) => (
+                                            <span key={idx} className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-full">
+                                                {pet}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
 
                                 {/* Documents and Availability */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                                     {/* Documents */}
-                                    <div>
-                                        <p className="text-xs font-black text-slate-900 uppercase tracking-widest mb-2">Documents</p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {caretaker.documents.map((doc, idx) => (
-                                                <a key={idx} href="#" className="flex items-center gap-2 text-sm font-bold text-teal-600 hover:text-teal-700 bg-white px-3 py-1.5 rounded-lg border border-slate-200 transition-all shadow-sm group">
-                                                    <svg className="w-4 h-4 text-slate-400 group-hover:text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                                    </svg>
-                                                    {doc}
-                                                </a>
-                                            ))}
+                                    {caretaker.verificationDocs && caretaker.verificationDocs.length > 0 && (
+                                        <div>
+                                            <p className="text-xs font-black text-slate-900 uppercase tracking-widest mb-2">Documents</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {caretaker.verificationDocs.map((doc, idx) => (
+                                                    <span key={idx} className="flex items-center gap-2 text-sm font-bold text-slate-600 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
+                                                        <FileText size={14} className="text-slate-400" />
+                                                        {doc}
+                                                    </span>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
 
                                     {/* Availability */}
-                                    <div>
-                                        <p className="text-xs font-black text-slate-900 uppercase tracking-widest mb-2">Availability</p>
-                                        <div className="bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
-                                            <p className="text-sm font-medium text-slate-700">{caretaker.availability}</p>
+                                    {(caretaker.availabilityStartDate || caretaker.availabilityEndDate) && (
+                                        <div>
+                                            <p className="text-xs font-black text-slate-900 uppercase tracking-widest mb-2">Availability</p>
+                                            <div className="bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+                                                <p className="text-sm font-medium text-slate-700">
+                                                    {caretaker.availabilityStartDate && new Date(caretaker.availabilityStartDate).toLocaleDateString()} 
+                                                    {caretaker.availabilityEndDate && ` - ${new Date(caretaker.availabilityEndDate).toLocaleDateString()}`}
+                                                </p>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             </div>
 
                             {/* Actions */}
                             <div className="flex flex-col gap-3 min-w-fit">
-                                {caretaker.status === "Pending" ? (
-                                    <>
-                                        <button 
-                                            onClick={() => handleAction(caretaker.id, 'approve')}
-                                            className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-teal-600/20 active:scale-95 flex items-center gap-2"
-                                        >
+                                <button 
+                                    onClick={() => handleAction(caretaker.id, 'approve')}
+                                    disabled={actionLoading === caretaker.id}
+                                    className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-teal-600/20 active:scale-95 flex items-center gap-2 disabled:cursor-not-allowed"
+                                >
+                                    {actionLoading === caretaker.id ? (
+                                        <>
+                                            <Loader size={16} className="animate-spin" /> Processing
+                                        </>
+                                    ) : (
+                                        <>
                                             <ShieldCheck size={16} /> Approve
-                                        </button>
-                                        <button 
-                                            onClick={() => handleAction(caretaker.id, 'reject')}
-                                            className="px-6 py-2.5 border-2 border-slate-200 text-slate-500 hover:text-red-500 hover:border-red-200 text-sm font-bold rounded-xl transition-all active:scale-95"
-                                        >
-                                            Reject
-                                        </button>
-                                    </>
-                                ) : (
-                                    <button 
-                                        onClick={() => fireToast('info', 'Already Processed', `${caretaker.name} is already ${caretaker.status.toLowerCase()}`)}
-                                        className="px-6 py-2.5 bg-slate-100 text-slate-400 text-sm font-bold rounded-xl cursor-default"
-                                    >
-                                        {caretaker.status}
-                                    </button>
-                                )}
+                                        </>
+                                    )}
+                                </button>
+                                <button 
+                                    onClick={() => handleAction(caretaker.id, 'reject')}
+                                    disabled={actionLoading === caretaker.id}
+                                    className="px-6 py-2.5 border-2 border-slate-200 text-slate-500 hover:text-red-500 hover:border-red-200 text-sm font-bold rounded-xl transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    Reject
+                                </button>
                             </div>
                         </div>
                     )) : (
@@ -291,12 +319,14 @@ export default function VerifiedQueue() {
                             ) : (
                                 <>
                                     <h3 className="text-xl font-bold text-slate-900 tracking-tight">All Clear</h3>
-                                    <p className="text-slate-500 font-medium mt-2">No caregivers match the current filter.</p>
+                                    <p className="text-slate-500 font-medium mt-2">No pending caregiver applications at this time.</p>
                                 </>
                             )}
                         </div>
                     )}
                 </div>
+                    </>
+                )}
             </main>
         </div>
     );

@@ -1,13 +1,47 @@
 "use client"
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "../components/Navbar";
 import { 
     PawPrint, CheckCircle, AlertTriangle, CircleDollarSign, 
     ArrowRight, UserCheck, Settings, MapPin, Star, 
     BadgeCheck, Check, Minus, Clock, ShieldAlert,
-    Mail, UserX, Eye, Search, ChevronUp, ChevronDown
+    Mail, UserX, Eye, Search, ChevronUp, ChevronDown, Loader
 } from "lucide-react";
+
+interface Caregiver {
+    id: string;
+    name: string;
+    email?: string;
+    biography?: string;
+    dailyRate: number;
+    location?: string;
+    experienceYears?: number;
+    verified: boolean;
+    averageRating: number;
+    totalReviews: number;
+    completedBookings: number;
+    user?: {
+        avatar?: string;
+    };
+}
+
+interface Transaction {
+    id: string;
+    bookingId: string;
+    date: Date | string;
+    pet: string;
+    owner: string;
+    ownerEmail: string;
+    caretaker: string;
+    startDate: Date | string;
+    endDate: Date | string;
+    baseAmount: number;
+    fee: number;
+    total: number;
+    status: string;
+    method: string;
+}
 
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState("caretakers");
@@ -34,29 +68,105 @@ export default function AdminDashboard() {
     const [reportSortBy, setReportSortBy] = useState("");
     const [reportSortOrder, setReportSortOrder] = useState<"asc" | "desc" | "none">("none");
 
-    const stats = [
-        { label: "Active Care Contracts", value: "142", icon: (<PawPrint size={24}/>), color: "text-blue-600" },
-        { label: "Pending HR Incidents", value: "3", icon: (<AlertTriangle size={24}/>), color: "text-red-600" },
-        { label: "Revenue (5% Fee)", value: "$1,240.50", icon: (<CircleDollarSign size={24}/>), color: "text-teal-600" },
-        { label: "Verification Queue", value: "12", icon: (<CheckCircle size={24}/>), color: "text-purple-600" }
-    ];
+    // Data states
+    const [caregivers, setCaregivers] = useState<Caregiver[]>([]);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [incidents, setIncidents] = useState<any[]>([]);
+    const [loadingCaregivers, setLoadingCaregivers] = useState(true);
+    const [loadingTransactions, setLoadingTransactions] = useState(true);
+    const [stats, setStats] = useState([
+        { label: "Active Care Contracts", value: "0", icon: (<PawPrint size={24}/>), color: "text-blue-600" },
+        { label: "Pending HR Incidents", value: "0", icon: (<AlertTriangle size={24}/>), color: "text-red-600" },
+        { label: "Revenue (5% Fee)", value: "$0", icon: (<CircleDollarSign size={24}/>), color: "text-teal-600" },
+        { label: "Verification Queue", value: "0", icon: (<CheckCircle size={24}/>), color: "text-purple-600" }
+    ]);
 
-    const caretakers = [
-        { id: 1, name: "Sarah Chen", email: "sarah.chen@example.com", location: "Bukit Batok", pets: ["Dogs", "Cats"], rate: "$65/day", experience: "5 years", status: "Approved", dropoff: true, img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah", documents: ["NRIC_Front.jpg", "NRIC_Back.jpg", "Pet_Care_Cert.pdf"], availability: "Mar 15 - Apr 30, 2026", biography: "Passionate pet lover with 5 years of experience caring for dogs and cats. Certified in pet first aid and animal behavior." },
-        { id: 2, name: "Mike Tan", email: "mike.tan@example.com", location: "Tampines", pets: ["Birds", "Small Mammals"], rate: "$55/day", experience: "3 years", status: "Approved", dropoff: true, img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Mike", documents: ["NRIC_Front.jpg", "First_Aid_Cert.pdf"], availability: "Apr 1 - Apr 20, 2026", biography: "Specialized in exotic pets and small mammals. Have experience with birds, hamsters, and guinea pigs." },
-        { id: 3, name: "Lisa Wong", email: "lisa.wong@example.com", location: "Jurong East", pets: ["Dogs", "Cats", "Reptiles"], rate: "$75/day", experience: "7 years", status: "Approved", dropoff: false, img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa", documents: ["NRIC_Front.jpg", "NRIC_Back.jpg", "Pet_Care_Cert.pdf", "Background_Check.pdf"], availability: "Mar 10 - May 15, 2026", biography: "Professional pet sitter with extensive experience in all types of pets including reptiles." },
-        { id: 4, name: "James Lee", email: "james.lee@example.com", location: "Woodlands", pets: ["Reptiles", "Fish"], rate: "$80/day", experience: "10 years", status: "Approved", dropoff: true, img: "https://api.dicebear.com/7.x/avataaars/svg?seed=James", documents: ["NRIC_Front.jpg", "Specialty_Cert.pdf"], availability: "Mar 20 - Apr 25, 2026", biography: "Aquarium specialist and reptile expert with over a decade of experience." },
-        { id: 5, name: "Emma Ng", email: "emma.ng@example.com", location: "Bedok", pets: ["Dogs"], rate: "$70/day", experience: "2 years", status: "Approved", dropoff: false, img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Emma", documents: ["NRIC_Front.jpg", "Incomplete_Form.pdf"], availability: "Mar 25 - Apr 10, 2026", biography: "Dog enthusiast with experience in training and care." },
-    ];
+    // Fetch caregivers and transactions data
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                setLoadingCaregivers(true);
+                setLoadingTransactions(true);
+                
+                let verifiedCaregivers: Caregiver[] = [];
+                let activeContractsCount = 0;
+                let pendingVerificationsCount = 0;
+                let totalRevenue = 0;
+                let pendingIncidentsCount = 0;
 
-    const transactions = [
-        { id: "TRX-101", client: "John Lim", caretaker: "Sarah Chen", pet: "Kiki (Cat)", dates: "Apr 01 - Apr 03", amount: "$130.00", status: "Completed", method: "Visa", date: "Apr 01, 2026" },
-        { id: "TRX-102", client: "Siti Aminah", caretaker: "James Lee", pet: "Goldie (Fish)", dates: "Mar 28 - Mar 30", amount: "$160.00", status: "Completed", method: "PayNow", date: "Mar 28, 2026" },
-    ];
+                // Fetch caregivers
+                const cargiverResponse = await fetch('/api/caregivers');
+                if (cargiverResponse.ok) {
+                    const data = await cargiverResponse.json();
+                    verifiedCaregivers = (data.caregivers || []).filter((c: Caregiver) => c.verified);
+                    setCaregivers(verifiedCaregivers);
+                }
 
-    const reports = [
-        { id: "INC-442", reporter: "jiaxinlow716@gmail.com", title: "did not feed the dog", desc: "she did not feed the dogs its 12:5...", caretaker: "Sarah Chen", priority: "High", status: "Pending", filed: "Feb 15, 2026" }
-    ];
+                // Fetch active contracts
+                const contractsResponse = await fetch('/api/admin/contracts');
+                if (contractsResponse.ok) {
+                    const contractsData = await contractsResponse.json();
+                    activeContractsCount = contractsData.count || 0;
+                }
+
+                // Fetch pending verifications from the same source used by the verification queue page.
+                const pendingApplicationsResponse = await fetch('/api/admin/pending-applications');
+                if (pendingApplicationsResponse.ok) {
+                    const pendingApplicationsData = await pendingApplicationsResponse.json();
+                    const pendingApplications = Array.isArray(pendingApplicationsData.applications)
+                        ? pendingApplicationsData.applications
+                        : [];
+                    pendingVerificationsCount = pendingApplications.length;
+                }
+
+                // Fetch transactions
+                const txResponse = await fetch('/api/admin/transactions');
+                if (txResponse.ok) {
+                    const txData = await txResponse.json();
+                    const txList = (txData.transactions || []) as Transaction[];
+                    setTransactions(txList);
+
+                    // Calculate total revenue (5% fees)
+                    totalRevenue = txList.reduce((sum, tx) => sum + tx.fee, 0);
+                }
+
+                // Fetch incidents
+                const incidentsResponse = await fetch('/api/incidents', { credentials: 'include' });
+                if (incidentsResponse.ok) {
+                    const incidentsData = await incidentsResponse.json();
+                    const incidentsList = (incidentsData.incidents || []);
+                    setIncidents(incidentsList);
+                    pendingIncidentsCount = incidentsList.filter((inc: any) => inc.status === 'PENDING').length;
+                }
+
+                // Update all stats at once
+                setStats(prev => [
+                    { ...prev[0], value: activeContractsCount.toString() },
+                    { ...prev[1], value: pendingIncidentsCount.toString() },
+                    { ...prev[2], value: `$${totalRevenue.toFixed(2)}` },
+                    { ...prev[3], value: pendingVerificationsCount.toString() }
+                ]);
+            } catch (error) {
+                console.error('Failed to fetch data:', error);
+            } finally {
+                setLoadingCaregivers(false);
+                setLoadingTransactions(false);
+            }
+        };
+
+        fetchData();
+    }, []);
+
+    const reports = incidents.map((incident: any) => ({
+        id: incident.id,
+        reporter: incident.reporter || 'Unknown',
+        title: incident.title || incident.description,
+        desc: incident.description || '',
+        caretaker: incident.caretaker || 'Unknown',
+        priority: incident.priority === 'HIGH' ? 'High' : incident.priority === 'MEDIUM' ? 'Medium' : 'Low',
+        status: incident.status === 'PENDING' ? 'Pending' : incident.status === 'UNDER_REVIEW' ? 'Under Review' : incident.status === 'RESOLVED' ? 'Resolved' : 'Dismissed',
+        filed: new Date(incident.filed).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    }));
 
     // Handle report resolution
     const handleReportResolution = (reportId: string) => {
@@ -118,7 +228,7 @@ export default function AdminDashboard() {
                 const query = transactionSearch.toLowerCase();
                 return (
                     tx.id.toLowerCase().includes(query) ||
-                    tx.client.toLowerCase().includes(query) ||
+                    tx.owner.toLowerCase().includes(query) ||
                     tx.caretaker.toLowerCase().includes(query) ||
                     tx.pet.toLowerCase().includes(query)
                 );
@@ -186,37 +296,27 @@ export default function AdminDashboard() {
         });
 
     // Filter and sort caretakers based on search and filter states
-    const filteredCaretakers = caretakers
+    const filteredCaretakers = caregivers
         .filter((ct) => {
             // Search filter
             if (searchQuery) {
                 const query = searchQuery.toLowerCase();
                 return (
                     ct.name.toLowerCase().includes(query) ||
-                    ct.email.toLowerCase().includes(query) ||
-                    ct.location.toLowerCase().includes(query)
+                    (ct.email && ct.email.toLowerCase().includes(query)) ||
+                    (ct.location && ct.location.toLowerCase().includes(query))
                 );
             }
             return true;
         })
         .filter((ct) => {
-            // Status filter
-            if (statusFilter !== "all") {
-                return ct.status === statusFilter;
-            }
+            // Status filter (all verified in this view)
             return true;
         })
         .filter((ct) => {
             // Location filter
-            if (locationFilter !== "all") {
+            if (locationFilter !== "all" && ct.location) {
                 return ct.location === locationFilter;
-            }
-            return true;
-        })
-        .filter((ct) => {
-            // Pet type filter
-            if (petTypeFilter !== "all") {
-                return ct.pets.includes(petTypeFilter);
             }
             return true;
         })
@@ -228,13 +328,13 @@ export default function AdminDashboard() {
                     comparison = a.name.localeCompare(b.name);
                     break;
                 case "experience":
-                    comparison = parseInt(a.experience) - parseInt(b.experience);
+                    comparison = (a.experienceYears || 0) - (b.experienceYears || 0);
                     break;
                 case "rate":
-                    comparison = parseInt(a.rate.replace(/\D/g, "")) - parseInt(b.rate.replace(/\D/g, ""));
+                    comparison = a.dailyRate - b.dailyRate;
                     break;
                 case "location":
-                    comparison = a.location.localeCompare(b.location);
+                    comparison = (a.location || "").localeCompare(b.location || "");
                     break;
                 default:
                     comparison = 0;
@@ -420,8 +520,20 @@ export default function AdminDashboard() {
                     </div>
                     {/* RESULTS COUNT */}
                     <div className="text-left text-sm font-medium italic text-slate-500 mb-1">
-                        {activeTab === "caretakers" && `Showing ${filteredCaretakers.length} of ${caretakers.length} caregiver${caretakers.length !== 1 ? 's' : ''}`}
-                        {activeTab === "transactions" && `Showing ${filteredTransactions.length} of ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`}
+                        {activeTab === "caretakers" && (
+                            loadingCaregivers ? (
+                                <span className="flex items-center gap-2"><Loader size={14} className="animate-spin" />Loading caregivers...</span>
+                            ) : (
+                                `Showing ${filteredCaretakers.length} of ${caregivers.length} caregiver${caregivers.length !== 1 ? 's' : ''}`
+                            )
+                        )}
+                        {activeTab === "transactions" && (
+                            loadingTransactions ? (
+                                <span className="flex items-center gap-2"><Loader size={14} className="animate-spin" />Loading transactions...</span>
+                            ) : (
+                                `Showing ${filteredTransactions.length} of ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`
+                            )
+                        )}
                         {activeTab === "reports" && `Showing ${filteredReports.length} of ${reports.length} report${reports.length !== 1 ? 's' : ''}`}
                     </div>
                     <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto shadow-sm">
@@ -454,7 +566,7 @@ export default function AdminDashboard() {
                                         >
                                             Experience <SortIcon column="experience" currentSort={sortBy} order={sortOrder} />
                                         </th>
-                                        <th className="py-4 px-6 text-sm font-medium text-slate-500">Availability</th>
+                                        <th className="py-4 px-6 text-sm font-medium text-slate-500">Rating</th>
                                         <th className="py-4 px-6 text-sm font-medium text-slate-500">Status</th>
                                         <th className="py-4 px-6 text-sm font-medium text-slate-500">Actions</th>
                                     </tr>
@@ -464,7 +576,7 @@ export default function AdminDashboard() {
                                         <tr key={ct.id} className="border-b border-slate-100 hover:bg-slate-50/50">
                                             <td className="py-4 px-6">
                                                 <div className="flex items-center gap-3">
-                                                    <img src={ct.img} alt={ct.name} className="w-9 h-9 rounded-full object-cover" />
+                                                    <img src={ct.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${ct.name}`} alt={ct.name} className="w-9 h-9 rounded-full object-cover" />
                                                     <div>
                                                         <div className="flex items-center gap-1">
                                                             <span className="font-bold text-slate-900 text-sm">{ct.name}</span>
@@ -475,33 +587,46 @@ export default function AdminDashboard() {
                                             </td>
                                             <td className="py-4 px-6">
                                                 <div className="flex items-center gap-1 text-sm text-slate-600">
-                                                    <MapPin size={14} className="text-slate-400" />
-                                                    {ct.location}
+                                                    {ct.location ? (
+                                                        <>
+                                                            <MapPin size={14} className="text-slate-400" />
+                                                            {ct.location}
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-slate-400">-</span>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="py-4 px-6 text-sm font-bold text-slate-900">
-                                                {ct.rate}
+                                                ${ct.dailyRate}/day
                                             </td>
                                             <td className="py-4 px-6 text-sm font-bold text-slate-900">
-                                                {ct.experience}
+                                                {ct.experienceYears ? `${ct.experienceYears} years` : '-'}
                                             </td>
                                             <td className="py-4 px-6">
-                                                <span className="text-sm font-medium text-slate-700">{ct.availability}</span>
+                                                <div className="flex items-center gap-1 text-sm text-slate-600">
+                                                    {ct.totalReviews > 0 ? (
+                                                        <>
+                                                            <Star size={14} className="text-amber-400" fill="currentColor" />
+                                                            <span className="font-bold">{ct.averageRating.toFixed(1)}</span>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-slate-400">No reviews</span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="py-4 px-6">
-                                                <span className={`px-2.5 py-1 rounded text-xs uppercase font-bold ${
-                                                    ct.status === "Approved" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
-                                                }`}>
-                                                    {ct.status}
+                                                <span className="px-2.5 py-1 rounded text-xs uppercase font-bold bg-green-100 text-green-700">
+                                                    Verified
                                                 </span>
                                             </td>
                                             <td className="py-4 px-6">
-                                                <button 
-                                                    onClick={() => window.location.href = `./admin/verified?search=${encodeURIComponent(ct.email)}`}
+                                                <Link 
+                                                    href="/admin/verified"
                                                     className="bg-teal-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-teal-800 transition-colors"
                                                 >
-                                                    Manage
-                                                </button>
+                                                    View
+                                                </Link>
                                             </td>
                                         </tr>
                                     ))}
@@ -523,7 +648,7 @@ export default function AdminDashboard() {
                                             className="py-4 px-6 text-xs font-black uppercase text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-50 transition-colors select-none"
                                             onClick={() => handleTransactionSort('client')}
                                         >
-                                            Client / Caretaker <SortIcon column="client" currentSort={transactionSortBy} order={transactionSortOrder} />
+                                            Owner / Caretaker <SortIcon column="client" currentSort={transactionSortBy} order={transactionSortOrder} />
                                         </th>
                                         <th className="py-4 px-6 text-xs font-black uppercase text-slate-500">Pet / Dates</th>
                                         <th 
@@ -532,25 +657,39 @@ export default function AdminDashboard() {
                                         >
                                             Amount <SortIcon column="amount" currentSort={transactionSortBy} order={transactionSortOrder} />
                                         </th>
-                                        <th className="py-4 px-6 text-xs font-black uppercase text-slate-500">Method</th>
+                                        <th className="py-4 px-6 text-xs font-black uppercase text-slate-500">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredTransactions.map((tx) => (
+                                    {filteredTransactions.length > 0 ? filteredTransactions.map((tx) => {
+                                        const startDate = new Date(tx.startDate).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
+                                        const endDate = new Date(tx.endDate).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
+                                        return (
                                         <tr key={tx.id} className="border-b border-slate-100 hover:bg-slate-50">
                                             <td className="py-4 px-6 text-sm font-bold text-slate-900">{tx.id}</td>
                                             <td className="py-4 px-6">
-                                                <p className="text-sm font-bold text-slate-900">{tx.client}</p>
+                                                <p className="text-sm font-bold text-slate-900">{tx.owner}</p>
                                                 <p className="text-xs text-slate-500">Care by: {tx.caretaker}</p>
                                             </td>
                                             <td className="py-4 px-6">
                                                 <p className="text-sm font-medium">{tx.pet}</p>
-                                                <p className="text-xs text-slate-400">{tx.dates}</p>
+                                                <p className="text-xs text-slate-400">{startDate} - {endDate}</p>
                                             </td>
-                                            <td className="py-4 px-6 text-sm font-black text-slate-900">{tx.amount}</td>
-                                            <td className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">{tx.method}</td>
+                                            <td className="py-4 px-6 text-sm font-black text-slate-900">${tx.total.toFixed(2)}</td>
+                                            <td className="py-4 px-6">
+                                                <span className="px-2.5 py-1 rounded text-xs uppercase font-bold bg-green-100 text-green-700">
+                                                    {tx.status}
+                                                </span>
+                                            </td>
                                         </tr>
-                                    ))}
+                                    );
+                                    }) : (
+                                        <tr>
+                                            <td colSpan={5} className="py-12 px-6 text-center text-slate-500">
+                                                No transactions found
+                                            </td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         )}

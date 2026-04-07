@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
     if (petTypesParam) {
       const petTypes = petTypesParam.split(',').filter(Boolean);
       if (petTypes.length > 0) {
-        where.petPreferences = { hasSome: petTypes };
+        // Temporarily disabled pet type filtering to debug
+        // where.petPreferences = { hasSome: petTypes };
       }
     }
 
@@ -45,6 +46,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Exclude the current user from the caregiver list
+    where.NOT = {
+      id: payload.userId
+    };
+
     // Fetch all pets for this user
     const caregivers = await prisma.caregiverProfile.findMany({
       where,
@@ -60,6 +66,7 @@ export async function GET(request: NextRequest) {
         averageRating: true,
         totalReviews: true,
         completedBookings: true,
+        services: true,
         petPreferences: true,
         createdAt: true,
         updatedAt: true,

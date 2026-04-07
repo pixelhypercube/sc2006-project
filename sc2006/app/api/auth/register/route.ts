@@ -110,9 +110,14 @@ export async function POST(request: Request) {
                     data: {
                         id: user.id,
                         name: user.name,
+                        verified: false,
                         dailyRate: 0,
                         petPreferences: [],
+                        dogSizes: [],
+                        services: [],
                         location: user.location ?? null,
+                        availabilityStartDate: null,
+                        availabilityEndDate: null,
                     }
                 });
             }

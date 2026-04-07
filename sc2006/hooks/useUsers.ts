@@ -1,5 +1,14 @@
 import { useState } from 'react';
 
+const PET_TYPE_LABELS: Record<string, string> = {
+  DOG: 'Dogs',
+  CAT: 'Cats',
+  BIRD: 'Birds',
+  REPTILE: 'Reptiles',
+  SMALL_ANIMAL: 'Small Mammals',
+  FISH: 'Fish',
+};
+
 interface Caregiver {
   id: string;
   name: string;
@@ -9,6 +18,7 @@ interface Caregiver {
   biography?: string;
   avatar?: string;
   verified: boolean;
+  petPreferences?: string[];
   petsHandled: string[];
   bookings?: Array<{
     id: string;
@@ -39,10 +49,21 @@ export function useUsers() {
       
       const data = await response.json();
 
-      // flatten user.avatar → imageUrl
       return data.caregivers.map((c: any) => ({
-        ...c,
+        id: c.id,
+        name: c.name,
+        location: c.location,
+        dailyRate: c.dailyRate,
+        verified: c.verified,
+        experience: c.experienceYears || 0,
+        rating: c.averageRating || 0,
+        reviews: c.totalReviews || 0,
+        price: c.dailyRate,
         imageUrl: c.user?.avatar ?? null,
+        isVerified: c.verified,
+        petPreferences: c.petPreferences ?? [],
+        petsHandled: (c.petPreferences ?? []).map((petType: string) => PET_TYPE_LABELS[petType] ?? petType),
+        services: c.services ?? [],
         locationCoords: c.user?.latitude && c.user?.longitude
           ? [c.user.latitude, c.user.longitude]
           : null,

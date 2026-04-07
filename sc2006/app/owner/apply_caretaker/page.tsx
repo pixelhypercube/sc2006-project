@@ -24,7 +24,7 @@ const PET_TYPES = ["DOG", "CAT", "BIRD", "FISH", "REPTILE", "SMALL_ANIMAL"];
 
 export default function ApplyCaretaker() {
     const router = useRouter();
-    const { user, loading } = useAuth();
+    const { user, loading, refetchUser } = useAuth();
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
@@ -131,16 +131,15 @@ export default function ApplyCaretaker() {
 
         try {
             // Validate required fields
-            if (!formData.biography || !formData.dailyRate || !formData.location || 
-                !formData.experienceYears || formData.petPreferences.length === 0) {
-                throw new Error("Please fill in all required fields");
+            if (!formData.dailyRate) {
+                throw new Error("Daily rate is required");
             }
 
             const payload = {
-                biography: formData.biography,
+                biography: formData.biography || undefined,
                 dailyRate: parseFloat(formData.dailyRate),
-                location: formData.location,
-                experienceYears: parseInt(formData.experienceYears),
+                location: formData.location || undefined,
+                experienceYears: formData.experienceYears ? parseInt(formData.experienceYears) : undefined,
                 petPreferences: formData.petPreferences,
                 verificationDocs: formData.verificationDocs,
                 availability: dateRangeAvailability ? [{
@@ -164,6 +163,9 @@ export default function ApplyCaretaker() {
             setSuccess(true);
             setHasApplied(true);
             setApplicationStatus("PENDING");
+            
+            // Refresh user data to update navbar
+            await refetchUser();
             
             // Redirect after 3 seconds
             setTimeout(() => {
@@ -283,7 +285,7 @@ export default function ApplyCaretaker() {
                         <div className="space-y-6">
                             <div>
                                 <label className="block text-xs font-black text-slate-900 uppercase tracking-widest mb-2">
-                                    Biography <span className="text-red-500">*</span>
+                                    Biography
                                 </label>
                                 <textarea
                                     rows={4}
@@ -297,8 +299,8 @@ export default function ApplyCaretaker() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                                 <div>
-                                    <label className="block text-xs font-black text-slate-900 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                        <MapPin size={12} className="text-teal-500" /> Location <span className="text-red-500">*</span>
+                                    <label className="text-xs font-black text-slate-900 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                        <MapPin size={12} className="text-teal-500" /> Location
                                     </label>
                                     <input
                                         type="text"
@@ -311,8 +313,8 @@ export default function ApplyCaretaker() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-black text-slate-900 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                        <Briefcase size={12} className="text-teal-500" /> Years of Experience <span className="text-red-500">*</span>
+                                    <label className="text-xs font-black text-slate-900 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                        <Briefcase size={12} className="text-teal-500" /> Years of Experience
                                     </label>
                                     <input
                                         type="number"
@@ -327,7 +329,7 @@ export default function ApplyCaretaker() {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-black text-slate-900 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <label className="text-xs font-black text-slate-900 uppercase tracking-widest mb-2 flex items-center gap-2">
                                     <DollarSign size={12} className="text-teal-500" /> Daily Rate (SGD) <span className="text-red-500">*</span>
                                 </label>
                                 <input
@@ -357,7 +359,7 @@ export default function ApplyCaretaker() {
                         </div>
 
                         <p className="text-sm font-medium text-slate-600 mb-4">
-                            Select the types of pets you're comfortable caring for <span className="text-red-500">*</span>
+                            Select the types of pets you're comfortable caring for
                         </p>
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -504,9 +506,9 @@ export default function ApplyCaretaker() {
                                         </div>
                                         <div className="space-y-2">
                                             {formData.verificationDocs.map((doc, index) => (
-                                                <div key={index} className="flex items-center justify-between bg-white border border-slate-200 rounded-lg p-3 min-h-[60px]">
+                                                <div key={index} className="flex items-center justify-between bg-white border border-slate-200 rounded-lg p-3 min-h-15">
                                                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                        <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                        <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center shrink-0">
                                                             <FileText size={16} className="text-teal-600" />
                                                         </div>
                                                         <div className="text-left flex-1 min-w-0">
@@ -526,7 +528,7 @@ export default function ApplyCaretaker() {
                                                                     verificationDocs: formData.verificationDocs.filter((_, i) => i !== index)
                                                                 });
                                                             }}
-                                                            className="ml-3 text-red-500 hover:text-red-700 transition-colors flex-shrink-0"
+                                                            className="ml-3 text-red-500 hover:text-red-700 transition-colors shrink-0"
                                                         >
                                                             <X size={16} />
                                                         </button>

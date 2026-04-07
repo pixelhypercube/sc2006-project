@@ -47,12 +47,16 @@ export function useAuth() {
         body: JSON.stringify({ identifier, password, rememberMe }),
       });
 
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || 'Login failed');
+        const message = data.message || data.error || 'Login failed';
+        throw Object.assign(new Error(message), {
+          status: res.status,
+          code: data.error,
+        });
       }
 
-      const data = await res.json();
       setUser(data.user);
       return data;
     } catch (error: any) {
@@ -124,8 +128,7 @@ export function useAuth() {
       });
       
       if (res.ok) {
-        const data = await res.json();
-        setUser(data.user);
+        await res.json().catch(() => ({}));
         return true;
       }
       return false;
@@ -136,6 +139,10 @@ export function useAuth() {
   }
 
 
+  const refetchUser = useCallback(() => {
+    fetchUser(false);
+  }, []);
+
   return {
     user,
     loading,
@@ -144,6 +151,7 @@ export function useAuth() {
     forgotPassword,
     resetPassword,
     refreshToken,
+    refetchUser,
     //withAuthRefresh, // Use for protected API calls
     isAuthenticated: !!user,
     isOwner: user?.role === 'OWNER',

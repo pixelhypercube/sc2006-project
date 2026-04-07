@@ -20,6 +20,7 @@ interface Caregiver {
   location: string;
   dailyRate: number;
   verified: boolean;
+    petPreferences?: string[];
 
   //OPTIONAL
   experience?: number;
@@ -35,6 +36,15 @@ interface Caregiver {
     status: string;
   }>;
 }
+
+const PET_TYPE_OPTIONS = [
+        { label: 'Dogs', value: 'DOG' },
+        { label: 'Cats', value: 'CAT' },
+        { label: 'Birds', value: 'BIRD' },
+        { label: 'Reptiles', value: 'REPTILE' },
+        { label: 'Small Mammals', value: 'SMALL_ANIMAL' },
+        { label: 'Fish', value: 'FISH' },
+] as const;
 
 const SG_REGIONS: Record<string, number[]> = {
     "Bukit Batok": [1.3496, 103.7496],
@@ -121,7 +131,8 @@ export default function SearchCaregivers() {
         }
         // Pet type filter
         if (petTypes.length > 0) {
-            const hasPet = petTypes.every(pet => caregiver.petsHandled?.includes(pet));
+            const caregiverPets = caregiver.petPreferences ?? caregiver.petsHandled ?? [];
+            const hasPet = caregiverPets.some(pet => petTypes.includes(pet));
             if (!hasPet) return false;
         }
         // Experience filter
@@ -191,13 +202,13 @@ export default function SearchCaregivers() {
                     </p>
 
                     {/* WARNING: COMMENT THIS OUT WHEN EDITING OTHER THINGS CAUSE WE DON'T WANNA SPAM TOO MANY API CALLS TO data.gov.sg */}
-                    <MapComponent
+                    {/* <MapComponent
                     userLocation={locationCoords}
                     onMapClick={handleMapClick}
                     caregivers={getFilteredCaregivers}
                     searchRadius={minDistance}
                     minDistance={minDistance}
-                    />
+                    /> */}
                 </div>
 
                 <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-6 mb-12 flex flex-col lg:flex-row gap-5 items-center">
@@ -364,9 +375,9 @@ export default function SearchCaregivers() {
                             key={caregiver.id}
                             name={caregiver.name}
                             location={caregiver.location}
-                            experience={0}
-                            rating={5}
-                            reviews={5}
+                            experience={caregiver.experience || 0}
+                            rating={caregiver.rating || 0}
+                            reviews={caregiver.reviews || 0}
                             price={caregiver.dailyRate}
                             imageUrl={caregiver.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(caregiver.name)}`}
                             isVerified={caregiver.verified}
@@ -417,18 +428,18 @@ export default function SearchCaregivers() {
                             <div className="pt-8 border-t border-slate-100">
                                 <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4">Pet Type</h4>
                                 <div className="flex flex-wrap gap-3">
-                                    {['Dogs', 'Cats', 'Birds', 'Reptiles', 'Small Mammals', 'Fish'].map(pet => (
+                                    {PET_TYPE_OPTIONS.map(({ label, value }) => (
                                         <button 
-                                        key={pet} 
-                                        onClick={() => handlePetTypeUpdate(pet)}
+                                        key={value} 
+                                        onClick={() => handlePetTypeUpdate(value)}
                                         className={`
                                                 px-5 py-2.5 rounded-xl border text-sm font-bold transition-all
-                                                ${petTypes.includes(pet) 
+                                                ${petTypes.includes(value) 
                                                     ? "border-teal-500 text-teal-700 bg-teal-50 shadow-sm" 
                                                     : "border-slate-200 text-slate-600 hover:border-teal-300 hover:text-teal-600 bg-white"
                                                 }
                                             `}>
-                                            {pet}
+                                            {label}
                                         </button>
                                     ))}
                                 </div>

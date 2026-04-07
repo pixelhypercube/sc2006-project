@@ -49,30 +49,35 @@ import {
 const serviceDetails = [
     // 1. CORE BOARDING & CARE (TIMED)
     {
+        id: "BOARDING",
         name: "Pet Boarding",
         category: "Core Care",
         description: "Your pet stays overnight in my home and is treated like family.",
         icon: <Home size={18} className="text-teal-500"/>
     },
     {
+        id: "HOUSE_SITTING",
         name: "House Sitting",
         category: "Core Care",
         description: "I'll stay overnight in your home to watch over your pets and property.",
         icon: <CheckCircle2 size={18} className="text-teal-500"/>
     },
     {
+        id: "DROP_IN",
         name: "Drop-in Visits",
         category: "Core Care",
         description: "30 or 60-minute visits to feed, play, and give potty breaks.",
         icon: <Coffee size={18} className="text-teal-500"/>
     },
     {
+        id: "DAYCARE",
         name: "Doggie Daycare",
         category: "Core Care",
         description: "Daytime care in my home, usually from 8 AM to 6 PM.",
         icon: <Sun size={18} className="text-teal-500"/>
     },
     {
+        id: "WALKING",
         name: "Dog Walking",
         category: "Core Care",
         description: "A 30-60 minute personalized walk around the neighborhood.",
@@ -81,30 +86,35 @@ const serviceDetails = [
 
     // 2. WELLNESS & MAINTENANCE (TASK-BASED)
     {
+        id: "BATHING",
         name: "Bathing & Brushing",
         category: "Wellness",
         description: "A relaxing bath and thorough brushing to keep coats shiny.",
         icon: <ShowerHead size={18} className="text-teal-500"/>
     },
     {
+        id: "NAILS",
         name: "Nail Trimming",
         category: "Wellness",
         description: "Safe and quick clipping or grinding of pet nails.",
         icon: <Scissors size={18} className="text-teal-500"/>
     },
     {
+        id: "EARS",
         name: "Ear Cleaning",
         category: "Wellness",
         description: "Gentle cleaning to prevent infections, especially for floppy ears.",
         icon: <Wind size={18} className="text-teal-500"/>
     },
     {
+        id: "TEETH",
         name: "Teeth Brushing",
         category: "Wellness",
         description: "Daily dental hygiene to maintain fresh breath and healthy gums.",
         icon: <Sparkles size={18} className="text-teal-500"/>
     },
     {
+        id: "DESHEDDING",
         name: "De-shedding Treatment",
         category: "Wellness",
         description: "Heavy brushing and treatment to minimize shedding at home.",
@@ -113,24 +123,28 @@ const serviceDetails = [
 
     // 3. TRAINING & EDUCATION
     {
+        id: "TRAINING_PUPPY",
         name: "Puppy Training",
         category: "Training",
         description: "Early socialization and essential potty training foundations.",
         icon: <GraduationCap size={18} className="text-teal-500"/>
     },
     {
+        id: "TRAINING_OBEDIENCE",
         name: "Obedience Training",
         category: "Training",
         description: "Mastering commands like sit, stay, heel, and recall.",
         icon: <Target size={18} className="text-teal-500"/>
     },
     {
+        id: "TRAINING_BEHAVIOR",
         name: "Behavioral Consultation",
         category: "Training",
         description: "Addressing leash pulling, anxiety, or specific behavioral issues.",
         icon: <Brain size={18} className="text-teal-500"/>
     },
     {
+        id: "TRAINING_AGILITY",
         name: "Agility Training",
         category: "Training",
         description: "Guided exercise through tunnels, jumps, and weave poles.",
@@ -139,30 +153,35 @@ const serviceDetails = [
 
     // 4. MEDICAL & SPECIALIZED CARE
     {
+        id: "MED_ORAL",
         name: "Oral Medication",
         category: "Medical",
         description: "Experienced administration of pills, tablets, or liquid medicine.",
         icon: <Pill size={18} className="text-teal-500"/>
     },
     {
+        id: "MED_INJECT",
         name: "Injection Administration",
         category: "Medical",
         description: "Safe administration of Insulin or other required injections.",
         icon: <Syringe size={18} className="text-teal-500"/>
     },
     {
+        id: "MED_RECOVERY",
         name: "Post-Surgery Recovery",
         category: "Medical",
         description: "Wound monitoring and ensuring restricted activity for healing.",
         icon: <HeartPulse size={18} className="text-teal-500"/>
     },
     {
+        id: "MED_SENIOR",
         name: "Senior Pet Care",
         category: "Medical",
         description: "Extra patience and assistance for pets with mobility issues.",
         icon: <Hourglass size={18} className="text-teal-500"/>
     },
     {
+        id: "MED_WOUND",
         name: "Wound Care",
         category: "Medical",
         description: "Cleaning minor abrasions or changing bandages as instructed.",
@@ -171,18 +190,21 @@ const serviceDetails = [
 
     // 5. LOGISTICS & EXTRAS
     {
+        id: "TAXI",
         name: "Pet Taxi",
         category: "Logistics",
         description: "Safe transport to the vet, groomers, or other appointments.",
         icon: <Car size={18} className="text-teal-500"/>
     },
     {
+        id: "WEDDING",
         name: "Wedding Attendant",
         category: "Logistics",
         description: "Helping your pet be part of your special day without the stress.",
         icon: <PartyPopper size={18} className="text-teal-500"/>
     },
     {
+        id: "CLEANING",
         name: "Tank & Cage Cleaning",
         category: "Logistics",
         description: "Cleaning and maintenance for fish, reptiles, or small mammals.",
@@ -215,6 +237,7 @@ const initialUser = {
     biography: "",
     dailyRate: 0,
     pets: ["dogs", "cats"],
+    services: [] as string[],
 };
 
 export default function CaretakerProfile() {
@@ -222,6 +245,7 @@ export default function CaretakerProfile() {
     const { user, loading } = useAuth();
     const [profileData, setProfileData] = useState(initialUser);
     const [avatar, setAvatar] = useState<string | null>(null);
+    const [isVerified, setIsVerified] = useState(false);
     const [reviews, setReviews] = useState<any[]>([]);
         useEffect(() => {
         if (user && !loading) {
@@ -235,8 +259,10 @@ export default function CaretakerProfile() {
             biography: user.biography || '',
             dailyRate: cp?.dailyRate || 0,
             pets: cp?.petPreferences || [],
+            services: cp?.services || [],
             });
             setAvatar((user as any).avatar || null);
+            setIsVerified(Boolean(cp?.verified));
 
             if (user.id) {
                 fetch(`/api/reviews?caregiverId=${user.id}`)
@@ -278,10 +304,12 @@ export default function CaretakerProfile() {
                         <div className="text-white">
                             <div className="flex items-center gap-3 mb-2">
                                 <h1 className="text-3xl font-bold">{profileData.name}</h1>
-                                <span className="bg-white/20 text-white text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest border border-white/10 flex items-center gap-1">
-                                    <ShieldCheck size={12} strokeWidth={3} />
-                                    <span className="leading-none pt-px">Verified</span>
-                                </span>
+                                {isVerified && (
+                                    <span className="bg-white/20 text-white text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest border border-white/10 flex items-center gap-1">
+                                        <ShieldCheck size={12} strokeWidth={3} />
+                                        <span className="leading-none pt-px">Verified</span>
+                                    </span>
+                                )}
                             </div>
                             <div className="flex items-center gap-4 text-sm text-teal-50 mb-4">
                                 <span className="flex items-center gap-1">
@@ -418,29 +446,37 @@ export default function CaretakerProfile() {
                                     Services Offered
                                 </h2>
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {serviceDetails.map((service) => (
-                                        <div 
-                                            key={service.name} 
-                                            className="p-5 rounded-2xl bg-slate-50 border border-slate-100 flex items-start gap-4 hover:bg-white hover:border-teal-100 hover:shadow-md transition-all group"
-                                        >
-                                            {/* Icon Container */}
-                                            <div className="p-3 bg-white rounded-xl shadow-sm group-hover:bg-teal-50 transition-colors">
-                                                {service.icon}
+                                {profileData.services.length === 0 ? (
+                                    <div className="text-center py-12">
+                                        <p className="text-slate-500 text-sm">No services selected yet.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {serviceDetails
+                                            .filter(service => profileData.services.includes(service.id))
+                                            .map((service) => (
+                                            <div 
+                                                key={service.id} 
+                                                className="p-5 rounded-2xl bg-slate-50 border border-slate-100 flex items-start gap-4 hover:bg-white hover:border-teal-100 hover:shadow-md transition-all group"
+                                            >
+                                                {/* Icon Container */}
+                                                <div className="p-3 bg-white rounded-xl shadow-sm group-hover:bg-teal-50 transition-colors">
+                                                    {service.icon}
+                                                </div>
+                                                
+                                                {/* Service Text */}
+                                                <div>
+                                                    <h3 className="text-slate-900 font-bold text-sm mb-1">
+                                                        {service.name}
+                                                    </h3>
+                                                    <p className="text-slate-500 text-xs leading-relaxed font-medium">
+                                                        {service.description}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            
-                                            {/* Service Text */}
-                                            <div>
-                                                <h3 className="text-slate-900 font-bold text-sm mb-1">
-                                                    {service.name}
-                                                </h3>
-                                                <p className="text-slate-500 text-xs leading-relaxed font-medium">
-                                                    {service.description}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

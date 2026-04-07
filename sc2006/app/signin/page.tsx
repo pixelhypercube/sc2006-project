@@ -12,11 +12,13 @@ export default function Signin() {
     const [password, setPassword] = useState("");
     const [rememberMe, setRememberMe] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
+    const [isSuspendedError, setIsSuspendedError] = useState(false);
     
 
     async function loginHandler(event: SyntheticEvent) {
         event.preventDefault();
         setErrorMsg(""); // clear prev errors
+        setIsSuspendedError(false);
 
         if (!identifier) {
             setErrorMsg("Please enter your email or username.");
@@ -38,7 +40,7 @@ export default function Signin() {
             
             // Redirect based on role
             if (data.user.role === 'ADMIN') {
-                router.push('/admin/dashboard');
+                router.push('/admin');
             } else if (data.user.role === 'CAREGIVER') {
                 router.push('/caregiver');
             } else {
@@ -48,7 +50,13 @@ export default function Signin() {
             router.refresh();
 
         } catch (error: any) {
-            setErrorMsg(error.message || 'Login failed');
+            const suspended = error?.status === 403 && String(error?.code || '').toLowerCase().includes('suspended');
+            setIsSuspendedError(suspended);
+            setErrorMsg(
+                suspended
+                    ? 'Your account has been suspended. Please contact support for assistance.'
+                    : (error.message || 'Login failed')
+            );
         }
     }
         
@@ -67,7 +75,11 @@ export default function Signin() {
                     </div>
 
                     {errorMsg && (
-                        <div className="mb-6 p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg text-center">
+                        <div className={`mb-6 p-3 text-sm rounded-lg text-center ${
+                            isSuspendedError
+                                ? 'bg-amber-50 border border-amber-100 text-amber-700'
+                                : 'bg-red-50 border border-red-100 text-red-600'
+                        }`}>
                             {errorMsg}
                         </div>
                     )}

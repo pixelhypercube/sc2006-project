@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/app/lib/prisma';
 import { verifyToken } from '@/app/lib/utils';
+import { decodePaymentRequestContent, summarizePaymentRequest } from '@/app/lib/paymentRequestMessage';
 
 // GET - Get all chats for current user or get/create a specific chat
 export async function GET(request: Request) {
@@ -44,13 +45,14 @@ export async function GET(request: Request) {
       const conversations = chats.map((chat) => {
         const other = chat.ownerId === userId ? chat.caregiver : chat.owner;
         const lastMsg = chat.messages[0];
+        const paymentRequest = lastMsg ? decodePaymentRequestContent(lastMsg.content) : null;
         return {
           id: chat.id,
           name: other.name,
           initial: other.name.charAt(0).toUpperCase(),
           avatar: other.avatar,
           otherId: other.id,
-          lastMessage: lastMsg?.content ?? '',
+          lastMessage: paymentRequest ? summarizePaymentRequest(paymentRequest) : (lastMsg?.content ?? ''),
           date: lastMsg
             ? new Date(lastMsg.createdAt).toLocaleDateString('en-SG', { month: 'short', day: 'numeric' })
             : new Date(chat.updatedAt).toLocaleDateString('en-SG', { month: 'short', day: 'numeric' }),

@@ -59,8 +59,11 @@ interface caregiver {
     verified: boolean;
     // petsHandled: string[];
     biography: string;
+    availabilityStartDate?: string | null;
+    availabilityEndDate?: string | null;
     // sizesHandled: string[];
     avatar?: string;
+    services?: string[];
 }
 
 const petIcons: Record<string, React.ReactNode> = {
@@ -96,30 +99,35 @@ const demoReviews = [
 const serviceDetails = [
     // 1. CORE BOARDING & CARE (TIMED)
     {
+        id: "BOARDING",
         name: "Pet Boarding",
         category: "Core Care",
         description: "Your pet stays overnight in my home and is treated like family.",
         icon: <Home size={18} className="text-teal-500"/>
     },
     {
+        id: "HOUSE_SITTING",
         name: "House Sitting",
         category: "Core Care",
         description: "I'll stay overnight in your home to watch over your pets and property.",
         icon: <CheckCircle2 size={18} className="text-teal-500"/>
     },
     {
+        id: "DROP_IN",
         name: "Drop-in Visits",
         category: "Core Care",
         description: "30 or 60-minute visits to feed, play, and give potty breaks.",
         icon: <Coffee size={18} className="text-teal-500"/>
     },
     {
+        id: "DAYCARE",
         name: "Doggie Daycare",
         category: "Core Care",
         description: "Daytime care in my home, usually from 8 AM to 6 PM.",
         icon: <Sun size={18} className="text-teal-500"/>
     },
     {
+        id: "WALKING",
         name: "Dog Walking",
         category: "Core Care",
         description: "A 30-60 minute personalized walk around the neighborhood.",
@@ -128,30 +136,35 @@ const serviceDetails = [
 
     // 2. WELLNESS & MAINTENANCE (TASK-BASED)
     {
+        id: "BATHING",
         name: "Bathing & Brushing",
         category: "Wellness",
         description: "A relaxing bath and thorough brushing to keep coats shiny.",
         icon: <ShowerHead size={18} className="text-teal-500"/>
     },
     {
+        id: "NAILS",
         name: "Nail Trimming",
         category: "Wellness",
         description: "Safe and quick clipping or grinding of pet nails.",
         icon: <Scissors size={18} className="text-teal-500"/>
     },
     {
+        id: "EARS",
         name: "Ear Cleaning",
         category: "Wellness",
         description: "Gentle cleaning to prevent infections, especially for floppy ears.",
         icon: <Wind size={18} className="text-teal-500"/>
     },
     {
+        id: "TEETH",
         name: "Teeth Brushing",
         category: "Wellness",
         description: "Daily dental hygiene to maintain fresh breath and healthy gums.",
         icon: <Sparkles size={18} className="text-teal-500"/>
     },
     {
+        id: "DESHEDDING",
         name: "De-shedding Treatment",
         category: "Wellness",
         description: "Heavy brushing and treatment to minimize shedding at home.",
@@ -160,24 +173,28 @@ const serviceDetails = [
 
     // 3. TRAINING & EDUCATION
     {
+        id: "TRAINING_PUPPY",
         name: "Puppy Training",
         category: "Training",
         description: "Early socialization and essential potty training foundations.",
         icon: <GraduationCap size={18} className="text-teal-500"/>
     },
     {
+        id: "TRAINING_OBEDIENCE",
         name: "Obedience Training",
         category: "Training",
         description: "Mastering commands like sit, stay, heel, and recall.",
         icon: <Target size={18} className="text-teal-500"/>
     },
     {
+        id: "TRAINING_BEHAVIOR",
         name: "Behavioral Consultation",
         category: "Training",
         description: "Addressing leash pulling, anxiety, or specific behavioral issues.",
         icon: <Brain size={18} className="text-teal-500"/>
     },
     {
+        id: "TRAINING_AGILITY",
         name: "Agility Training",
         category: "Training",
         description: "Guided exercise through tunnels, jumps, and weave poles.",
@@ -186,30 +203,35 @@ const serviceDetails = [
 
     // 4. MEDICAL & SPECIALIZED CARE
     {
+        id: "MED_ORAL",
         name: "Oral Medication",
         category: "Medical",
         description: "Experienced administration of pills, tablets, or liquid medicine.",
         icon: <Pill size={18} className="text-teal-500"/>
     },
     {
+        id: "MED_INJECT",
         name: "Injection Administration",
         category: "Medical",
         description: "Safe administration of Insulin or other required injections.",
         icon: <Syringe size={18} className="text-teal-500"/>
     },
     {
+        id: "MED_RECOVERY",
         name: "Post-Surgery Recovery",
         category: "Medical",
         description: "Wound monitoring and ensuring restricted activity for healing.",
         icon: <HeartPulse size={18} className="text-teal-500"/>
     },
     {
+        id: "MED_SENIOR",
         name: "Senior Pet Care",
         category: "Medical",
         description: "Extra patience and assistance for pets with mobility issues.",
         icon: <Hourglass size={18} className="text-teal-500"/>
     },
     {
+        id: "MED_WOUND",
         name: "Wound Care",
         category: "Medical",
         description: "Cleaning minor abrasions or changing bandages as instructed.",
@@ -218,18 +240,21 @@ const serviceDetails = [
 
     // 5. LOGISTICS & EXTRAS
     {
+        id: "TAXI",
         name: "Pet Taxi",
         category: "Logistics",
         description: "Safe transport to the vet, groomers, or other appointments.",
         icon: <Car size={18} className="text-teal-500"/>
     },
     {
+        id: "WEDDING",
         name: "Wedding Attendant",
         category: "Logistics",
         description: "Helping your pet be part of your special day without the stress.",
         icon: <PartyPopper size={18} className="text-teal-500"/>
     },
     {
+        id: "CLEANING",
         name: "Tank & Cage Cleaning",
         category: "Logistics",
         description: "Cleaning and maintenance for fish, reptiles, or small mammals.",
@@ -251,6 +276,7 @@ export default function caregiverProfile() {
     const caregiverId = params.id as string;
     const [caregiver, setCaregiver] = useState<caregiver | null>(null);
     const [loading, setLoading] = useState(true);
+    const [reviews, setReviews] = useState<any[]>([]);
     const { fetchPets } = usePets();
     const [pets, setPets] = useState<Pet[]>([]);
     const { user } = useAuth();
@@ -264,6 +290,11 @@ export default function caregiverProfile() {
         const petsData = await fetchPets();
         setPets(petsData);
         setCaregiver(data.caregiver);
+        
+        // Fetch reviews for this caregiver
+        const reviewsRes = await fetch(`/api/reviews?caregiverId=${caregiverId}`);
+        const reviewsData = await reviewsRes.json();
+        setReviews(reviewsData.reviews || []);
     } catch (error) {
         console.error('Failed to load caregiver:', error);
     } finally {
@@ -314,7 +345,7 @@ export default function caregiverProfile() {
 
                     <div className="flex flex-col md:flex-row gap-8 items-start justify-between">
                         <div className="flex gap-6 items-center">
-                            <div className="w-32 h-32 rounded-3xl bg-teal-500 border-4 border-white/20 shadow-xl overflow-hidden flex items-center justify-center flex-shrink-0">
+                            <div className="w-32 h-32 rounded-3xl bg-teal-500 border-4 border-white/20 shadow-xl overflow-hidden flex items-center justify-center shrink-0">
                                 {caregiver?.avatar ? (
                                     <img src={caregiver.avatar} alt={caregiver?.name} className="w-full h-full object-cover" />
                                 ) : (
@@ -324,9 +355,11 @@ export default function caregiverProfile() {
                             <div className="text-white">
                                 <div className="flex items-center gap-3 mb-2">
                                     <h1 className="text-3xl font-black tracking-tight">{caregiver?.name}</h1>
-                                    <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg flex items-center gap-1.5 border border-white/10">
-                                        <ShieldCheck size={12} strokeWidth={3} /> Verified
-                                    </span>
+                                    {caregiver?.verified && (
+                                        <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg flex items-center gap-1.5 border border-white/10">
+                                            <ShieldCheck size={12} strokeWidth={3} /> Verified
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-y-2 gap-x-5 text-sm text-teal-50 mb-5 font-medium">
                                     <span className="flex items-center gap-1.5"><MapPin size={16} /> {caregiver?.location}</span>
@@ -400,71 +433,91 @@ export default function caregiverProfile() {
                     {/* REVIEWS TAB */}
                     {activeTab === 'Reviews' && (
                         <div className="space-y-4 animate-in fade-in duration-300">
-                            {demoReviews.map(review => (
-                                <div key={review.id} className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-                                    <div className="flex justify-between items-start mb-4">
-                                        {/* User Info & Avatar */}
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center font-black text-sm border border-teal-100">
-                                                {review.user.charAt(0)} {/* Grabs the first letter of their name */}
-                                            </div>
-                                            <div>
-                                                <h4 className="font-black text-slate-900 text-sm">{review.user}</h4>
-                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{review.date}</p>
-                                            </div>
-                                        </div>
-                                        {/* Stars */}
-                                        <div className="flex gap-0.5 text-amber-400">
-                                            {[...Array(5)].map((_, i) => (
-                                                <Star 
-                                                    key={i} 
-                                                    size={14} 
-                                                    fill={i < review.rating ? "currentColor" : "none"} 
-                                                    className={i < review.rating ? "text-amber-400" : "text-slate-200"}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <p className="text-slate-600 text-sm leading-relaxed font-medium">"{review.text}"</p>
+                            {reviews.length === 0 ? (
+                                <div className="bg-white p-16 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center text-center">
+                                    <Star size={32} className="text-slate-200 mb-4" strokeWidth={1.5} />
+                                    <h3 className="text-lg font-bold text-slate-900">No Reviews yet</h3>
+                                    <p className="text-sm text-slate-400 max-w-xs mt-1">
+                                        No reviews have been left for this caregiver.
+                                    </p>
                                 </div>
-                            ))}
+                            ) : (
+                                reviews.map(review => (
+                                    <div key={review.id} className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                                        <div className="flex justify-between items-start mb-4">
+                                            {/* User Info & Avatar */}
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center font-black text-sm border border-teal-100">
+                                                    {review.fromUser?.name?.charAt(0) || '?'}
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-black text-slate-900 text-sm">{review.fromUser?.name || 'Anonymous'}</h4>
+                                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+                                                        {new Date(review.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {/* Stars */}
+                                            <div className="flex gap-0.5 text-amber-400">
+                                                {[...Array(5)].map((_, i) => (
+                                                    <Star 
+                                                        key={i} 
+                                                        size={14} 
+                                                        fill={i < review.rating ? "currentColor" : "none"} 
+                                                        className={i < review.rating ? "text-amber-400" : "text-slate-200"}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <p className="text-slate-600 text-sm leading-relaxed font-medium">"{review.comment || '—'}"</p>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     )}
 
                     {/* SERVICES TAB */}
-
                     {activeTab === 'Services' && (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-4">
                             <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
                                 <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
-                                    {/* <Briefcase size={16} className="text-teal-500" />  */}
                                     Services Offered
                                 </h2>
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {serviceDetails.map((service) => (
-                                        <div 
-                                            key={service.name} 
-                                            className="group p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-teal-200 hover:bg-white hover:shadow-md transition-all duration-300 flex items-start gap-4"
-                                        >
-                                            <div className="p-3 bg-white rounded-xl shadow-sm group-hover:bg-teal-50 transition-colors">
-                                                {service.icon}
+                                {caregiver?.services && caregiver.services.length > 0 ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {serviceDetails
+                                            .filter(service => caregiver.services?.includes(service.id))
+                                            .map((service) => (
+                                            <div 
+                                                key={service.id} 
+                                                className="group p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-teal-200 hover:bg-white hover:shadow-md transition-all duration-300 flex items-start gap-4"
+                                            >
+                                                <div className="p-3 bg-white rounded-xl shadow-sm group-hover:bg-teal-50 transition-colors">
+                                                    {service.icon}
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-slate-900 font-black text-sm uppercase tracking-wide mb-1">
+                                                        {service.name}
+                                                    </h3>
+                                                    <p className="text-slate-500 text-xs leading-relaxed font-medium">
+                                                        {service.description}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h3 className="text-slate-900 font-black text-sm uppercase tracking-wide mb-1">
-                                                    {service.name}
-                                                </h3>
-                                                <p className="text-slate-500 text-xs leading-relaxed font-medium">
-                                                    {service.description}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8">
+                                        <p className="text-slate-500 text-sm\">No services selected yet.</p>
+                                    </div>
+                                )}
 
-                                <p className="text-center text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-8 flex items-center justify-center gap-2">
-                                    <Info size={12} /> Prices for these services are customizable during booking
-                                </p>
+                                {caregiver?.services && caregiver.services.length > 0 && (
+                                    <p className="text-center text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-8 flex items-center justify-center gap-2">
+                                        <Info size={12} /> Prices for these services are customizable during booking
+                                    </p>
+                                )}
                             </div>
                         </div>
                     )}
@@ -497,7 +550,15 @@ export default function caregiverProfile() {
 
             {/* MODALS */}
             {isBookingModalOpen && caregiver &&(
-                <BookingModal caregiverName={caregiver.name} caregiverId={caregiverId} pets={pets} onClose={() => setIsBookingModalOpen(false)} />
+                <BookingModal
+                    caregiverName={caregiver.name}
+                    caregiverId={caregiverId}
+                    dailyRate={caregiver.dailyRate}
+                    pets={pets}
+                    availabilityStartDate={caregiver.availabilityStartDate ?? null}
+                    availabilityEndDate={caregiver.availabilityEndDate ?? null}
+                    onClose={() => setIsBookingModalOpen(false)}
+                />
             )}
         </div>
     );

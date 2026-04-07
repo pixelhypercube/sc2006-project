@@ -16,6 +16,7 @@ model User {
   password                String
   email                   String        @unique
   role                    Role          @default(OWNER)
+  secondaryRole           Role?         @map("secondary_role")
   verified                Boolean       @default(false)
   status                  AccountStatus @default(ACTIVE)
   phone                   String?       @unique
@@ -44,6 +45,10 @@ model User {
   availabilityExceptions AvailabilityException[]
   ownedChats             Chat[]                  @relation("ChatOwner")
   caregiverChats         Chat[]                  @relation("ChatCaregiver")
+  verificationRecords    VerificationRecord[]
+  reportedIncidents      Incident[]              @relation("IncidentReporter")
+  caregiverIncidents     Incident[]              @relation("IncidentCaregiver")
+  resolvedIncidents      Incident[]              @relation("IncidentResolver")
 
   @@index([role])
   @@index([latitude, longitude])
@@ -51,26 +56,48 @@ model User {
 }
 
 model CaregiverProfile {
-  id                  String        @id @default(cuid())
-  name                String
-  user                User          @relation(fields: [id], references: [id], onDelete: Cascade)
-  biography           String?       @db.Text
-  dailyRate           Float         @map("daily_rate")
-  petPreferences      PetType[]
-  dogSizes            DogSize[]     @map("dog_sizes")
-  services            ServiceType[]
-  location            String?
-  experienceYears     Int?          @map("experience_years")
-  isAcceptingRequests Boolean       @default(true) @map("is_accepting_requests")
-  verified            Boolean       @default(false)
-  verificationDoc     String?       @map("verification_doc")
-  averageRating       Float         @default(0) @map("average_rating")
-  totalReviews        Int           @default(0) @map("total_reviews")
-  completedBookings   Int           @default(0) @map("completed_bookings")
-  createdAt           DateTime      @default(now()) @map("created_at")
-  updatedAt           DateTime      @updatedAt @map("updated_at")
+  id                    String        @id @default(cuid())
+  name                  String
+  user                  User          @relation(fields: [id], references: [id], onDelete: Cascade)
+  biography             String?       @db.Text
+  dailyRate             Float         @map("daily_rate")
+  petPreferences        PetType[]
+  dogSizes              DogSize[]     @map("dog_sizes")
+  services              ServiceType[]
+  location              String?
+  availabilityStartDate DateTime?     @map("availability_start_date")
+  availabilityEndDate   DateTime?     @map("availability_end_date")
+  experienceYears       Int?          @map("experience_years")
+  isAcceptingRequests   Boolean       @default(true) @map("is_accepting_requests")
+  verified              Boolean       @default(false)
+  verificationDoc       String?       @map("verification_doc")
+  averageRating         Float         @default(0) @map("average_rating")
+  totalReviews          Int           @default(0) @map("total_reviews")
+  completedBookings     Int           @default(0) @map("completed_bookings")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  verificationRecords VerificationRecord[]
 
   @@map("caregiver_profiles")
+}
+
+model VerificationRecord {
+  id          String             @id @default(cuid())
+  caregiverId String             @map("caregiver_id")
+  caregiver   CaregiverProfile   @relation(fields: [caregiverId], references: [id], onDelete: Cascade)
+  adminId     String             @map("admin_id")
+  admin       User               @relation(fields: [adminId], references: [id])
+  action      VerificationAction
+  reason      String?
+  notes       String?            @db.Text
+  createdAt   DateTime           @default(now()) @map("created_at")
+
+  @@index([caregiverId])
+  @@index([adminId])
+  @@index([createdAt])
+  @@map("verification_records")
 }
 
 model Pet {
@@ -110,11 +137,12 @@ model Booking {
   updatedAt           DateTime      @updatedAt @map("updated_at")
 
   // Relations
-  owner     User     @relation("OwnerBookings", fields: [ownerId], references: [id])
-  caregiver User     @relation("CaregiverBookings", fields: [caregiverId], references: [id])
-  pet       Pet      @relation(fields: [petId], references: [id])
+  owner     User       @relation("OwnerBookings", fields: [ownerId], references: [id])
+  caregiver User       @relation("CaregiverBookings", fields: [caregiverId], references: [id])
+  pet       Pet        @relation(fields: [petId], references: [id])
   review    Review?
   payment   Payment?
+  incidents Incident[]
 
   @@unique([ownerId, caregiverId, petId, startDate])
   @@index([caregiverId, status])
@@ -242,6 +270,36 @@ model Payment {
   @@map("payments")
 }
 
+model Incident {
+  id              String           @id @default(cuid())
+  bookingId       String           @map("booking_id")
+  reporterId      String           @map("reporter_id")
+  caregiverId     String           @map("caregiver_id")
+  resolvedById    String?          @map("resolved_by_id")
+  type            IncidentType
+  status          IncidentStatus   @default(PENDING)
+  priority        IncidentPriority @default(MEDIUM)
+  description     String           @db.Text
+  attachmentUrl   String?          @map("attachment_url")
+  attachmentType  String?          @map("attachment_type")
+  attachmentName  String?          @map("attachment_name")
+  resolutionNotes String?          @map("resolution_notes") @db.Text
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  resolvedAt      DateTime?        @map("resolved_at")
+
+  booking    Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  reporter   User    @relation("IncidentReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  caregiver  User    @relation("IncidentCaregiver", fields: [caregiverId], references: [id], onDelete: Cascade)
+  resolvedBy User?   @relation("IncidentResolver", fields: [resolvedById], references: [id])
+
+  @@index([bookingId])
+  @@index([reporterId])
+  @@index([caregiverId])
+  @@index([status, createdAt])
+  @@map("incidents")
+}
+
 enum Role {
   OWNER
   CAREGIVER
@@ -325,4 +383,28 @@ enum AccountStatus {
   ACTIVE
   SUSPENDED
   LOCKED
+}
+
+enum VerificationAction {
+  APPROVED
+  REJECTED
+}
+
+enum IncidentType {
+  SAFETY
+  UNRESPONSIVE
+  OTHER
+}
+
+enum IncidentStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum IncidentPriority {
+  LOW
+  MEDIUM
+  HIGH
 }

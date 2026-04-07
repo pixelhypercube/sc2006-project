@@ -15,9 +15,10 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search, MessageCircle, ChevronLeft, Send, Paperclip, FileIcon, Download, CreditCard, CheckCircle, Clock, Dog, X, Wallet, QrCode, Smartphone, Star } from "lucide-react";
 import { useToast } from "../context/ToastContext";
+import { decodePaymentRequestContent, summarizePaymentRequest, PaymentRequestPayload } from "../lib/paymentRequestMessage";
 
 // Local debug mode for this component only
-const USE_LOCAL_DEBUG = true;
+const USE_LOCAL_DEBUG = false;
 
 type Message = {
     id: string;
@@ -30,13 +31,23 @@ type Message = {
     attachmentType: string | null;
     type?: "text" | "payment_request";
     // For payment_request type messages
-    paymentData?: {
-        amount: number;
-        status: "PENDING" | "PAID";
-        bookingId: string;
-        petName: string;
-    };
+    paymentData?: PaymentRequestPayload;
 };
+
+function hydrateMessage(rawMessage: Message): Message {
+    const paymentData = decodePaymentRequestContent(rawMessage.content);
+
+    if (!paymentData) {
+        return { ...rawMessage, type: rawMessage.type ?? "text" };
+    }
+
+    return {
+        ...rawMessage,
+        type: "payment_request",
+        content: summarizePaymentRequest(paymentData),
+        paymentData,
+    };
+}
 
 type Conversation = {
     id: string;
@@ -112,7 +123,7 @@ export default function ChatUI() {
             try {
                 const data = JSON.parse(event.data);
                 if (data.type === 'message' && data.data) {
-                    const newMsg = data.data as Message;
+                    const newMsg = hydrateMessage(data.data as Message);
                     setMessages((prev) => {
                         if (prev.find((m) => m.id === newMsg.id)) return prev;
                         return [...prev, newMsg];
@@ -158,7 +169,7 @@ export default function ChatUI() {
             setConversations(filtered);
             
             // Auto-select from URL param or first conversation
-            const paramId = searchParams.get("bookingId");
+            const paramId = searchParams.get("chatId") || searchParams.get("bookingId");
             if (paramId) {
                 setActiveChat(paramId);
             } else if (filtered.length > 0) {
@@ -257,7 +268,7 @@ export default function ChatUI() {
         setLoadingMessages(true);
         fetch(`/api/messages?chatId=${activeChat}`)
             .then((r) => r.json())
-            .then((data) => setMessages(data.messages ?? []))
+            .then((data) => setMessages((data.messages ?? []).map(hydrateMessage)))
             .catch(() => setMessages([]))
             .finally(() => setLoadingMessages(false));
     }, [activeChat]);
@@ -297,8 +308,7 @@ export default function ChatUI() {
                     ? { ...msg, paymentData: { ...msg.paymentData!, status: "PAID" as const } }
                     : msg
             ));
-            setProcessingPayment(false);
-            setPaymentStep("complete");
+            closePaymentDialog();
             return;
         }
         
@@ -323,6 +333,7 @@ export default function ChatUI() {
                         : msg
                 ));
                 fireToast("success", "Payment Successful", `Your payment of $${paymentData.amount.toFixed(2)} has been processed.`);
+                closePaymentDialog();
             } else {
                 fireToast("danger", "Payment Failed", data.error ?? "An unknown error occurred.");
             }
@@ -369,7 +380,7 @@ export default function ChatUI() {
             });
             const data = await res.json();
             if (data.message) {
-                setMessages((prev) => [...prev, data.message]);
+                setMessages((prev) => [...prev, hydrateMessage(data.message)]);
                 setNewMessage("");
                 setConversations((prev) =>
                     prev.map((c) =>
@@ -402,7 +413,7 @@ export default function ChatUI() {
             const data = await res.json();
 
             if (data.message) {
-                setMessages((prev) => [...prev, data.message]);
+                setMessages((prev) => [...prev, hydrateMessage(data.message)]);
                 setNewMessage("");
                 setSelectedFile(null);
                 setFilePreview(null);
@@ -647,15 +658,6 @@ export default function ChatUI() {
                                                             <div className="flex items-center justify-center gap-2 text-amber-700">
                                                                 <Clock size={14} />
                                                                 <span className="text-xs font-bold">Awaiting payment</span>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    
-                                                    {isPending && isMe && (
-                                                        <div className="px-4 py-3 bg-amber-100/50 border-t border-amber-200">
-                                                            <div className="flex items-center justify-center gap-2 text-amber-700">
-                                                                <Clock size={14} />
-                                                                <span className="text-xs font-bold">Waiting for owner to pay</span>
                                                             </div>
                                                         </div>
                                                     )}

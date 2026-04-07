@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from "react";
-import { Dog, Calendar, MapPin, Inbox, Check, X, DollarSign } from "lucide-react";
+import { Dog, Calendar, MapPin, Inbox, Check, X } from "lucide-react";
 import Navbar from "../../components/Navbar";
 import { useAuth } from "@/hooks/useAuth";
 import { useBooking } from "@/hooks/useBooking";
@@ -9,10 +9,23 @@ import { Booking } from "@/app/generated/prisma/browser";
 // Used Omit to remove the raw ID fields from the base Prisma Booking type
 type BookingWithRelations = Omit<Booking, "ownerId" | "caregiverId" | "petId"> & {
     owner: { id: string; name: string; avatar: string | null; email: string };
-    caregiver: { id: string; name: string; avatar: string | null; email: string };
+    caregiver: {
+        id: string;
+        name: string;
+        avatar: string | null;
+        email: string;
+        caregiverProfile?: { dailyRate: number | null } | null;
+    };
     pets: { pet: { id: string; name: string; type: string; breed: string | null; photo: string | null } }[];
     payment: { id: string; status: string; amount: number } | null;
 };
+
+function calculateBookingDays(startDate: string | Date, endDate: string | Date) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffMs = end.getTime() - start.getTime();
+    return Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+}
 
 const MOCK_BOOKINGS: BookingWithRelations[] = [
     {
@@ -71,10 +84,6 @@ export default function IncomingRequests() {
     const [bookings, setBookings] = useState<BookingWithRelations[]>([]);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-    // --- NEW STATE FOR INLINE PAYMENT UI ---
-    const [paymentModeId, setPaymentModeId] = useState<string | null>(null);
-    const [paymentAmount, setPaymentAmount] = useState<string>("");
-
     useEffect(() => {
         if (!user) return;
         fetchBooking({ caregiverId: user.id }).then((data) =>
@@ -89,17 +98,6 @@ export default function IncomingRequests() {
             setBookings((prev) => prev.filter((b) => b.id !== bookingId));
         }
         setActionLoading(null);
-    };
-
-    const handlePaymentSubmit = (bookingId: string) => {
-        if (paymentAmount && !isNaN(Number(paymentAmount))) {
-            // Replace this console.log with your API call
-            console.log(`Requested $${paymentAmount} for booking ID: ${bookingId}`);
-            
-            // Reset UI
-            setPaymentModeId(null);
-            setPaymentAmount("");
-        }
     };
 
     const pendingRequests = bookings;
@@ -135,6 +133,10 @@ export default function IncomingRequests() {
                             const pet = req.pets?.[0]?.pet;
                             const startDate = new Date(req.startDate).toLocaleDateString("en-SG", { month: "short", day: "numeric", year: "numeric" });
                             const endDate = new Date(req.endDate).toLocaleDateString("en-SG", { month: "short", day: "numeric", year: "numeric" });
+                            const days = calculateBookingDays(req.startDate, req.endDate);
+                            const rateBasedGross = Number((Number(req.caregiver?.caregiverProfile?.dailyRate ?? 0) * days).toFixed(2));
+                            const gross = rateBasedGross || Number(req.totalPrice ?? 0);
+                            const estimatedNet = Number((gross * 0.95).toFixed(2));
 
                             return (
                                 <div key={req.id} className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden flex flex-col md:flex-row transition-all hover:shadow-md">
@@ -161,7 +163,7 @@ export default function IncomingRequests() {
                                                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">ID: {req.id}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-2xl font-black text-teal-600">${req.totalPrice.toFixed(2)}</p>
+                                                <p className="text-2xl font-black text-teal-600">${estimatedNet.toFixed(2)}</p>
                                                 <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Est. Earnings</p>
                                             </div>
                                         </div>
@@ -193,62 +195,21 @@ export default function IncomingRequests() {
                                         )}
 
                                         {/* ACTION BUTTONS */}
-                                        {paymentModeId === req.id ? (
-                                            // INLINE PAYMENT UI
-                                            <div className="flex flex-col sm:flex-row gap-3">
-                                                <div className="flex-1 relative">
-                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-teal-600">
-                                                        <DollarSign size={16} />
-                                                    </span>
-                                                    <input
-                                                        type="number"
-                                                        placeholder="Amount"
-                                                        value={paymentAmount}
-                                                        onChange={(e) => setPaymentAmount(e.target.value)}
-                                                        className="w-full pl-11 pr-4 py-4 bg-teal-50/50 border-2 border-teal-100 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-teal-400 transition-all placeholder:text-teal-300 placeholder:font-medium"
-                                                        autoFocus
-                                                    />
-                                                </div>
-                                                <button
-                                                    onClick={() => handlePaymentSubmit(req.id)}
-                                                    disabled={!paymentAmount}
-                                                    className="flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest px-8 py-4 rounded-xl transition-all shadow-lg shadow-teal-600/20 active:scale-[0.98]">
-                                                    <Check size={16} /> Confirm
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        setPaymentModeId(null);
-                                                        setPaymentAmount("");
-                                                    }}
-                                                    className="flex items-center justify-center gap-2 px-6 border-2 border-slate-100 hover:bg-slate-50 text-slate-400 hover:text-slate-600 text-xs font-black uppercase tracking-widest py-4 rounded-xl transition-all active:scale-[0.98]">
-                                                    <X size={16} /> Cancel
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            // DEFAULT BUTTONS
-                                            <div className="flex flex-col sm:flex-row gap-3">
-                                                <button
-                                                    onClick={() => handleAction(req.id, "CONFIRMED")}
-                                                    disabled={actionLoading === req.id}
-                                                    className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg shadow-teal-600/20 active:scale-[0.98]">
-                                                    <Check size={16} /> {actionLoading === req.id ? "Processing..." : "Accept Request"}
-                                                </button>
-                                                
-                                                <button
-                                                    onClick={() => setPaymentModeId(req.id)}
-                                                    disabled={actionLoading === req.id}
-                                                    className="flex items-center justify-center gap-2 px-6 border-2 border-teal-100 bg-teal-50 hover:bg-teal-100 disabled:opacity-50 text-teal-700 text-xs font-black uppercase tracking-widest py-4 rounded-xl transition-all active:scale-[0.98]">
-                                                    <DollarSign size={16} /> Request Payment
-                                                </button>
+                                        <div className="flex flex-col sm:flex-row gap-3">
+                                            <button
+                                                onClick={() => handleAction(req.id, "CONFIRMED")}
+                                                disabled={actionLoading === req.id}
+                                                className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg shadow-teal-600/20 active:scale-[0.98]">
+                                                <Check size={16} /> {actionLoading === req.id ? "Processing..." : "Accept Request"}
+                                            </button>
 
-                                                <button
-                                                    onClick={() => handleAction(req.id, "DECLINED")}
-                                                    disabled={actionLoading === req.id}
-                                                    className="flex items-center justify-center gap-2 px-8 border-2 border-slate-100 hover:bg-slate-50 disabled:opacity-50 text-slate-400 hover:text-slate-600 text-xs font-black uppercase tracking-widest py-4 rounded-xl transition-all active:scale-[0.98]">
-                                                    <X size={16} /> Decline
-                                                </button>
-                                            </div>
-                                        )}
+                                            <button
+                                                onClick={() => handleAction(req.id, "DECLINED")}
+                                                disabled={actionLoading === req.id}
+                                                className="flex-1 flex items-center justify-center gap-2 border-2 border-slate-100 hover:bg-slate-50 disabled:opacity-50 text-slate-400 hover:text-slate-600 text-xs font-black uppercase tracking-widest py-4 rounded-xl transition-all active:scale-[0.98]">
+                                                <X size={16} /> Decline
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             );

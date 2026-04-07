@@ -37,7 +37,7 @@ export function useBooking() {
     }
   };
 
-  const updateBookingStatus = async (bookingId: string, status: 'CONFIRMED' | 'DECLINED') => {
+  const updateBookingStatus = async (bookingId: string, status: 'CONFIRMED' | 'DECLINED' | 'COMPLETED') => {
     try {
       setLoading(true);
       setError(null);
@@ -75,13 +75,13 @@ export function useBooking() {
       if (!res.ok) {
         const msg = data.message ?? data.error ?? 'Failed to create booking';
         setError(msg);
-        return null;
+        return { success: false, error: msg, message: msg };
       }
       return data;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to create booking';
       setError(msg);
-      return null;
+      return { success: false, error: msg, message: msg };
     } finally {
       setLoading(false);
     }

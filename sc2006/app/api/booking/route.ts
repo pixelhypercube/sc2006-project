@@ -5,6 +5,15 @@ import { prisma } from '@/app/lib/prisma';
 import { verifyToken } from '@/app/lib/utils';
 import { bookingSchema } from '@/app/lib/validation';
 import { z } from 'zod';
+import { requestPaymentInChat } from '@/app/lib/paymentRequestChat';
+
+function calculateBookingAmount(startDate: Date | string, endDate: Date | string, dailyRate?: number | null) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+  const rate = Number(dailyRate ?? 0);
+  return Number((days * rate).toFixed(2));
+}
 
 // GET - List bookings for the authenticated user
 export async function GET(request: Request) {
@@ -36,15 +45,53 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'asc' },
       include: {
         owner: { select: { id: true, name: true, avatar: true, email: true } },
-        caregiver: { select: { id: true, name: true, avatar: true, email: true } },
+        caregiver: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            email: true,
+            caregiverProfile: { select: { dailyRate: true } },
+          },
+        },
         payment: { select: { id: true, status: true, amount: true } },
         pet: { select: { id: true, name: true, type: true, breed: true } },
         review: { select: { id: true, rating: true } },
       },
     });
 
-    // Auto-transition CONFIRMED bookings to IN_PROGRESS if today is within the booking dates
+    // Auto-transition overdue bookings to COMPLETED, and CONFIRMED bookings to IN_PROGRESS when active.
     const now = new Date();
+    const toComplete = bookings.filter(
+      (b) => (b.status === 'CONFIRMED' || b.status === 'IN_PROGRESS') && new Date(b.endDate) < now
+    );
+    if (toComplete.length > 0) {
+      await prisma.booking.updateMany({
+        where: { id: { in: toComplete.map((b) => b.id) } },
+        data: { status: 'COMPLETED' },
+      });
+      toComplete.forEach((b) => { b.status = 'COMPLETED'; });
+
+      await Promise.all(
+        toComplete.map((booking) => {
+          const amount = calculateBookingAmount(
+            booking.startDate,
+            booking.endDate,
+            booking.caregiver?.caregiverProfile?.dailyRate
+          ) || booking.totalPrice;
+
+          return requestPaymentInChat({
+            bookingId: booking.id,
+            ownerId: booking.ownerId,
+            caregiverId: booking.caregiverId,
+            senderId: booking.caregiverId,
+            petName: booking.pet?.name ?? 'Pet',
+            amount,
+          });
+        })
+      );
+    }
+
     const toUpdate = bookings.filter(
       (b) => b.status === 'CONFIRMED' && new Date(b.startDate) <= now && new Date(b.endDate) >= now
     );
@@ -85,7 +132,17 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'bookingId and status are required' }, { status: 400 });
     }
 
-    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        pet: { select: { name: true } },
+        caregiver: {
+          select: {
+            caregiverProfile: { select: { dailyRate: true } },
+          },
+        },
+      },
+    });
 
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
@@ -95,13 +152,17 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Only the caregiver can update this booking' }, { status: 403 });
     }
 
-    if (booking.status !== 'PENDING') {
+    const allowedStatuses = ['CONFIRMED', 'DECLINED', 'COMPLETED'];
+    if (!allowedStatuses.includes(status)) {
+      return NextResponse.json({ error: `Status must be one of: ${allowedStatuses.join(', ')}` }, { status: 400 });
+    }
+
+    if ((status === 'CONFIRMED' || status === 'DECLINED') && booking.status !== 'PENDING') {
       return NextResponse.json({ error: 'Only PENDING bookings can be updated' }, { status: 400 });
     }
 
-    const allowedStatuses = ['CONFIRMED', 'DECLINED'];
-    if (!allowedStatuses.includes(status)) {
-      return NextResponse.json({ error: `Status must be one of: ${allowedStatuses.join(', ')}` }, { status: 400 });
+    if (status === 'COMPLETED' && booking.status !== 'CONFIRMED' && booking.status !== 'IN_PROGRESS') {
+      return NextResponse.json({ error: 'Only CONFIRMED or IN_PROGRESS bookings can be completed' }, { status: 400 });
     }
 
     // If caregiver is accepting (status = CONFIRMED), check for date conflicts
@@ -132,6 +193,23 @@ export async function PATCH(request: Request) {
       where: { id: bookingId },
       data: { status },
     });
+
+    if (status === 'COMPLETED') {
+      const amount = calculateBookingAmount(
+        booking.startDate,
+        booking.endDate,
+        booking.caregiver?.caregiverProfile?.dailyRate
+      ) || booking.totalPrice;
+
+      await requestPaymentInChat({
+        bookingId: booking.id,
+        ownerId: booking.ownerId,
+        caregiverId: booking.caregiverId,
+        senderId: booking.caregiverId,
+        petName: booking.pet?.name ?? 'Pet',
+        amount,
+      });
+    }
 
     if (status === 'CONFIRMED') {
       await prisma.booking.updateMany({
@@ -190,11 +268,29 @@ export async function POST(request: Request) {
     // Verify caregiver exists
     const caregiver = await prisma.caregiverProfile.findUnique({
       where: { id: validatedData.caregiverId },
-      select: { id: true, dailyRate: true },
+      select: { id: true, dailyRate: true, availabilityStartDate: true, availabilityEndDate: true },
     });
 
     if (!caregiver) {
       return NextResponse.json({ error: 'Caregiver not found' }, { status: 404 });
+    }
+
+    if (caregiver.availabilityStartDate && caregiver.availabilityEndDate) {
+      const availableStart = new Date(caregiver.availabilityStartDate);
+      availableStart.setHours(0, 0, 0, 0);
+
+      const availableEnd = new Date(caregiver.availabilityEndDate);
+      availableEnd.setHours(23, 59, 59, 999);
+
+      if (startDate < availableStart || endDate > availableEnd) {
+        return NextResponse.json(
+          {
+            error: 'Caregiver unavailable',
+            message: 'Booking dates are outside the caregiver availability period',
+          },
+          { status: 409 }
+        );
+      }
     }
 
     // Verify pet belongs to the owner

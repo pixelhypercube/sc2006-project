@@ -25,8 +25,8 @@ const roleRoutes: Record<string, string[]> = {
   '/api/caregiver': ['CAREGIVER', 'ADMIN'],
   '/admin': ['ADMIN'],
   '/caregiver': ['CAREGIVER', 'ADMIN'],
-  '/owner': ['PET_OWNER'],
-  '/api/pets': ['PET_OWNER', 'CAREGIVER', 'ADMIN'],
+  '/owner': ['OWNER'],
+  '/api/pets': ['OWNER', 'CAREGIVER', 'ADMIN'],
 };
 
 export async function proxy(request: NextRequest) {
@@ -137,7 +137,7 @@ export async function proxy(request: NextRequest) {
         }
         
         const dashboardUrl = new URL(
-          payload.role === 'CAREGIVER' ? '/caregiver' : '/owner',
+          payload.role === 'ADMIN' ? '/admin' : payload.role === 'CAREGIVER' ? '/caregiver' : '/owner',
           request.url
         );
         return NextResponse.redirect(dashboardUrl);

@@ -11,12 +11,8 @@ export default function Logout() {
         sessionStorage.clear();
         localStorage.removeItem("user_role"); 
 
-        // TODO: work on API
-        const timer = setTimeout(() => {
-            router.push('/signin');
-        }, 1500);
-
-        return () => clearTimeout(timer); // cleanup timer on unmount
+        // Redirect as soon as cleanup is complete; avoid fixed waiting time.
+        router.replace('/signin');
     }, [router]);
 
     return (

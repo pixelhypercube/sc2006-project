@@ -25,17 +25,44 @@ import { useAuth } from "@/hooks/useAuth";
 import { useBooking } from "@/hooks/useBooking";
 import { useToast } from "../context/ToastContext";
 import { Booking } from "@/app/generated/prisma/browser";
-import PaymentRequestModal from "./PaymentRequestModal";
 import CaregiverAvailabilityModal from "../components/CaregiverAvailabilityModal";
+import WindowDialog from "../components/WindowDialog";
 
 type BookingWithRelations = Booking & {
     owner: { id: string; name: string; avatar: string | null; email: string };
-    caregiver: { id: string; name: string; avatar: string | null; email: string };
+    caregiver: {
+        id: string;
+        name: string;
+        avatar: string | null;
+        email: string;
+        caregiverProfile?: { dailyRate: number | null } | null;
+    };
     payment: { id: string; status: string; amount: number } | null;
     pet: { id: string; name: string; type: string; breed: string | null } | null;
     paymentStatus: string | null;
     paymentAmount: number | null;
 };
+
+function calculateBookingDays(startDate: string | Date, endDate: string | Date) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // Normalize to midnight to avoid partial-day drift from time-of-day offsets.
+    const startMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const endMidnight = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    const diffMs = endMidnight.getTime() - startMidnight.getTime();
+
+    // Inclusive range: same-day booking counts as 1 day.
+    return Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1);
+}
+
+function calculateNetFromRate(booking: BookingWithRelations) {
+    const days = calculateBookingDays(booking.startDate, booking.endDate);
+    const dailyRate = Number(booking.caregiver?.caregiverProfile?.dailyRate ?? 0);
+    const gross = Number((dailyRate * days).toFixed(2));
+    const safeGross = gross || Number(booking.totalPrice ?? 0);
+    return Number((safeGross * 0.95).toFixed(2));
+}
 
 const STATUS_STYLES: Record<string, string> = {
     CONFIRMED: "bg-teal-50 text-teal-600 border border-teal-100",
@@ -50,45 +77,128 @@ const STATUS_LABELS: Record<string, string> = {
 export default function CaregiverDashboard() {
     const router = useRouter();
     const { user } = useAuth();
-    const { fetchBooking, loading } = useBooking();
+    const { fetchBooking, updateBookingStatus, loading } = useBooking();
     const [bookings, setBookings] = useState<BookingWithRelations[]>([]);
     const [pendingCount, setPendingCount] = useState(0);
-    const [paymentRequestBooking, setPaymentRequestBooking] = useState<BookingWithRelations | null>(null);
+    const [endBookingTarget, setEndBookingTarget] = useState<BookingWithRelations | null>(null);
+    const [endingBookingId, setEndingBookingId] = useState<string | null>(null);
     const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
     const [availabilityStart, setAvailabilityStart] = useState<Date | null>(null);
     const [availabilityEnd, setAvailabilityEnd] = useState<Date | null>(null);
     const { fireToast } = useToast();
 
-    const handlePaymentRequest = (booking: BookingWithRelations) => {
-        setPaymentRequestBooking(booking);
+    const activeBookings = bookings.filter((booking) => booking.status === "CONFIRMED" || booking.status === "IN_PROGRESS");
+
+    const handleEndBookingRequest = (booking: BookingWithRelations) => {
+        setEndBookingTarget(booking);
     };
 
-    const handlePaymentRequestSubmit = (amount: number) => {
-        // Update the booking with payment request status
-        setBookings(prev => prev.map(b => 
-            b.id === paymentRequestBooking?.id 
-                ? { ...b, paymentStatus: "PENDING", paymentAmount: amount }
-                : b
-        ));
-        setPaymentRequestBooking(null);
-        fireToast("success", "Payment Request Sent", `Payment request of $${amount.toFixed(2)} has been sent to the owner.`);
+    const handleConfirmEndBooking = async () => {
+        if (!endBookingTarget) return;
+
+        setEndingBookingId(endBookingTarget.id);
+        const result = await updateBookingStatus(endBookingTarget.id, "COMPLETED");
+
+        if (result?.success) {
+            const completedBooking = (result.booking ?? endBookingTarget) as BookingWithRelations;
+            setBookings((prev) => prev.map((booking) => (
+                booking.id === completedBooking.id
+                    ? { ...booking, status: "COMPLETED" }
+                    : booking
+            )));
+            fireToast("success", "Booking Ended", `Booking for ${completedBooking.pet?.name ?? "pet"} has been marked as completed. Payment request posted in chat.`);
+        } else {
+            fireToast("danger", "Unable To End Booking", "Please try again.");
+        }
+
+        setEndingBookingId(null);
+        setEndBookingTarget(null);
     };
 
     const handleAvailabilityConfirm = (startDate: Date, endDate: Date | null) => {
-        setAvailabilityStart(startDate);
-        setAvailabilityEnd(endDate);
-        setShowAvailabilityModal(false);
-        // TODO: Call API to save availability
-        const endStr = endDate ? endDate.toLocaleDateString("en-SG", { month: "short", day: "numeric", year: "numeric" }) : "Open-ended";
-        fireToast("info", "Availability Updated", `Your availability is set from ${startDate.toLocaleDateString("en-SG", { month: "short", day: "numeric" })} to ${endStr}.`);
+        const saveAvailability = async () => {
+            if (!user?.name) {
+                fireToast("danger", "Save Failed", "Unable to identify your profile right now.");
+                return;
+            }
+
+            try {
+                const response = await fetch("/api/profile", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                        name: user.name,
+                        availabilityStartDate: startDate.toISOString(),
+                        availabilityEndDate: endDate ? endDate.toISOString() : null,
+                    }),
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data?.error || "Failed to save availability");
+                }
+
+                setAvailabilityStart(startDate);
+                setAvailabilityEnd(endDate);
+                setShowAvailabilityModal(false);
+
+                const endStr = endDate
+                    ? endDate.toLocaleDateString("en-SG", { month: "short", day: "numeric", year: "numeric" })
+                    : "Open-ended";
+                fireToast(
+                    "info",
+                    "Availability Updated",
+                    `Your availability is set from ${startDate.toLocaleDateString("en-SG", { month: "short", day: "numeric" })} to ${endStr}.`
+                );
+            } catch (error) {
+                const message = error instanceof Error ? error.message : "Failed to save availability";
+                fireToast("danger", "Save Failed", message);
+            }
+        };
+
+        saveAvailability();
+    };
+
+    const handleAvailabilityClear = async () => {
+        if (!user?.name) {
+            fireToast("danger", "Clear Failed", "Unable to identify your profile right now.");
+            return;
+        }
+
+        try {
+            const response = await fetch("/api/profile", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    name: user.name,
+                    availabilityStartDate: null,
+                    availabilityEndDate: null,
+                }),
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data?.error || "Failed to clear availability");
+            }
+
+            setAvailabilityStart(null);
+            setAvailabilityEnd(null);
+            setShowAvailabilityModal(false);
+            fireToast("info", "Availability Cleared", "Your availability dates have been removed.");
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Failed to clear availability";
+            fireToast("danger", "Clear Failed", message);
+        }
     };
 
     async function openChat(ownerId: string, caregiverId: string) {
         try {
             const res = await fetch(`/api/chats?ownerId=${ownerId}&caregiverId=${caregiverId}`);
             const data = await res.json();
-            if (data.bookingId) {
-                router.push(`/caregiver/messages?bookingId=${data.bookingId}`);
+            if (data.chatId) {
+                router.push(`/caregiver/messages?chatId=${data.chatId}`);
             } else {
                 fireToast("danger", "Chat Error", data.error ?? "Failed to open chat.");
             }
@@ -102,12 +212,36 @@ export default function CaregiverDashboard() {
         
         fetchBooking({ caregiverId: user.id }).then((data) => {
             const all = data as BookingWithRelations[];
-            setBookings(all.filter((b) => b.status === "CONFIRMED" || b.status === "IN_PROGRESS"));
+            setBookings(all);
             setPendingCount(all.filter((b) => b.status === "PENDING").length);
         });
     }, [user]);
 
-    const totalEarnings = bookings.reduce((sum, b) => sum + b.totalPrice * 0.95, 0);
+    useEffect(() => {
+        const loadAvailability = async () => {
+            if (!user?.id) return;
+
+            try {
+                const response = await fetch("/api/auth/me", { credentials: "include" });
+                const data = await response.json();
+
+                if (!response.ok) return;
+
+                const start = data?.user?.caregiverProfile?.availabilityStartDate;
+                const end = data?.user?.caregiverProfile?.availabilityEndDate;
+
+                setAvailabilityStart(start ? new Date(start) : null);
+                setAvailabilityEnd(end ? new Date(end) : null);
+            } catch {
+                setAvailabilityStart(null);
+                setAvailabilityEnd(null);
+            }
+        };
+
+        loadAvailability();
+    }, [user?.id]);
+
+    const totalEarnings = activeBookings.reduce((sum, b) => sum + calculateNetFromRate(b), 0);
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-20">
@@ -138,20 +272,20 @@ export default function CaregiverDashboard() {
                     <div className="lg:col-span-2 space-y-6">
                         <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                             Active Arrangements
-                            <span className="bg-teal-100 text-teal-600 text-xs px-2 py-0.5 rounded-full">{bookings.length}</span>
+                            <span className="bg-teal-100 text-teal-600 text-xs px-2 py-0.5 rounded-full">{activeBookings.length}</span>
                         </h2>
 
                         {loading && (
                             <p className="text-slate-400 font-medium text-sm">Loading...</p>
                         )}
 
-                        {!loading && bookings.length === 0 && (
+                        {!loading && activeBookings.length === 0 && (
                             <div className="bg-white border border-slate-100 rounded-2xl p-10 text-center text-slate-400 font-medium text-sm">
                                 No active arrangements.
                             </div>
                         )}
 
-                        {bookings.map((booking) => (
+                        {activeBookings.map((booking) => (
                             <div key={booking.id} className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
                                 <div className="flex justify-between items-start mb-6">
                                     <div className="flex gap-4">
@@ -201,16 +335,15 @@ export default function CaregiverDashboard() {
                                 )}
 
                                 <div className="flex justify-between items-center pt-4 border-t border-slate-50">
-                                    <p className="text-sm font-bold text-teal-600">${(booking.totalPrice * 0.95).toFixed(2)} <span className="text-slate-400 font-medium text-xs">earnings</span></p>
+                                    <p className="text-sm font-bold text-teal-600">${calculateNetFromRate(booking).toFixed(2)} <span className="text-slate-400 font-medium text-xs">earnings</span></p>
                                     <div className="flex gap-3">
-                                        {booking.paymentStatus !== "PAID" && (
-                                            <button
-                                                onClick={() => handlePaymentRequest(booking)}
-                                                className="text-sm font-bold text-amber-600 hover:text-amber-700 transition-colors flex items-center gap-1"
-                                            >
-                                                <DollarSign size={14} /> Request Payment
-                                            </button>
-                                        )}
+                                        <button
+                                            onClick={() => handleEndBookingRequest(booking)}
+                                            disabled={endingBookingId === booking.id}
+                                            className="text-sm font-bold text-rose-600 hover:text-rose-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                        >
+                                            {endingBookingId === booking.id ? "Ending..." : "End Booking"}
+                                        </button>
                                         <button
                                             className="text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors"
                                             onClick={() => openChat(booking.owner.id, booking.caregiver.id)}
@@ -236,6 +369,7 @@ export default function CaregiverDashboard() {
                                     <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center">
                                             <Calendar size={16} className="text-white" />
+
                                         </div>
                                         <div className="text-left">
                                             <span className="text-sm font-bold text-slate-700">My Availability</span>
@@ -273,15 +407,26 @@ export default function CaregiverDashboard() {
                 </div>
             </main>
 
-            {/* PAYMENT REQUEST MODAL */}
-            {paymentRequestBooking && (
-                <PaymentRequestModal
-                    bookingId={paymentRequestBooking.id}
-                    bookingTotal={paymentRequestBooking.totalPrice}
-                    ownerName={paymentRequestBooking.owner?.name ?? "Owner"}
-                    petName={paymentRequestBooking.pet?.name ?? "Pet"}
-                    onClose={() => setPaymentRequestBooking(null)}
-                    onSubmit={handlePaymentRequestSubmit}
+            {/* END BOOKING CONFIRMATION */}
+            {endBookingTarget && (
+                <WindowDialog
+                    icon="warning"
+                    title="End this booking?"
+                    subtitle={`${endBookingTarget.owner?.name ?? "Owner"} • ${endBookingTarget.pet?.name ?? "Pet"}`}
+                    description="This booking will be marked as completed and a payment request will be posted in chat automatically."
+                    onClose={() => setEndBookingTarget(null)}
+                    buttons={[
+                        {
+                            label: "Cancel",
+                            onClick: () => setEndBookingTarget(null),
+                            variant: "secondary",
+                        },
+                        {
+                            label: "End Booking",
+                            onClick: handleConfirmEndBooking,
+                            variant: "danger",
+                        },
+                    ]}
                 />
             )}
 
@@ -290,6 +435,7 @@ export default function CaregiverDashboard() {
                 <CaregiverAvailabilityModal
                     onClose={() => setShowAvailabilityModal(false)}
                     onConfirm={handleAvailabilityConfirm}
+                    onClear={handleAvailabilityClear}
                     initialStartDate={availabilityStart}
                     initialEndDate={availabilityEnd}
                 />

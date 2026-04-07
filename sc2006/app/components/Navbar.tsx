@@ -98,12 +98,13 @@ const mockNotifications = [
 ];
 
 export default function Navbar() {
-    const { user, logout } = useAuth();
+    const { user, logout, refetchUser } = useAuth();
     const pathname = usePathname();
     const router = useRouter(); 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [isEnablingOwnerMode, setIsEnablingOwnerMode] = useState(false);
 
     // refs
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -123,11 +124,87 @@ export default function Navbar() {
     }
 
     let activeLinks: NavLink[] = [];
+    const caregiverHasOwnerSecondaryRole =
+        currentRole === "CAREGIVER" &&
+        (user as any)?.secondaryRole === "OWNER";
+    const caregiverNeedsOwnerSecondaryRole =
+        currentRole === "CAREGIVER" &&
+        !caregiverHasOwnerSecondaryRole;
+
+    const isCaregiverInOwnerMode = pathname.startsWith("/owner") && caregiverHasOwnerSecondaryRole;
+
     if (isSignedUp) {
-        if (currentRole === "OWNER") activeLinks = ownerLinks;
-        else if (currentRole === "CAREGIVER") activeLinks = caregiverLinks;
-        else if (currentRole === "ADMIN") activeLinks = adminLinks;
+        // If on caregiver page and user has caregiverProfile (owner who applied as caregiver)
+        if (pathname.startsWith("/caregiver") && (user as any)?.caregiverProfile) {
+            activeLinks = caregiverLinks;
+        } else if (isCaregiverInOwnerMode) {
+            activeLinks = ownerLinks;
+        } else if (currentRole === "OWNER") {
+            activeLinks = ownerLinks;
+        } else if (currentRole === "CAREGIVER") {
+            activeLinks = caregiverLinks;
+        } else if (currentRole === "ADMIN") {
+            activeLinks = adminLinks;
+        }
     }
+
+    const isOwnerInCaregiverMode = pathname.startsWith("/caregiver") && (user as any)?.caregiverProfile;
+    const ownerHasCaregiverSecondaryRole =
+        currentRole === "OWNER" &&
+        (((user as any)?.secondaryRole === "CAREGIVER") || Boolean((user as any)?.caregiverProfile));
+    const ownerCaregiverActionHref = pathname.startsWith("/caregiver") && ownerHasCaregiverSecondaryRole
+        ? "/owner"
+        : ownerHasCaregiverSecondaryRole
+            ? "/caregiver"
+            : "/owner/apply_caretaker";
+    const ownerCaregiverActionLabel = pathname.startsWith("/caregiver") && ownerHasCaregiverSecondaryRole
+        ? "Owner's Page"
+        : ownerHasCaregiverSecondaryRole
+            ? "Caregiver's Page"
+            : "Apply for Caregiver";
+
+    const caregiverOwnerActionHref = isCaregiverInOwnerMode ? "/caregiver" : "/owner";
+    const caregiverOwnerActionLabel = isCaregiverInOwnerMode ? "Caregiver's Page" : "Owner's Page";
+
+    const dualRoleActionHref = currentRole === "OWNER" ? ownerCaregiverActionHref : caregiverOwnerActionHref;
+    const dualRoleActionLabel = currentRole === "OWNER" ? ownerCaregiverActionLabel : caregiverOwnerActionLabel;
+
+    const handleEnableOwnerMode = async () => {
+        try {
+            setIsEnablingOwnerMode(true);
+
+            const response = await fetch('/api/users/be-owner', {
+                method: 'POST',
+                credentials: 'include',
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to enable owner mode');
+            }
+
+            refetchUser();
+            setIsProfileDropdownOpen(false);
+            setIsMobileMenuOpen(false);
+            router.push('/owner');
+        } catch (error) {
+            console.error('Enable owner mode failed:', error);
+        } finally {
+            setIsEnablingOwnerMode(false);
+        }
+    };
+
+    // Display role for dropdown - show CAREGIVER if on caregiver page with caregiverProfile
+    const displayRole = isOwnerInCaregiverMode
+        ? "CAREGIVER"
+        : isCaregiverInOwnerMode
+            ? "OWNER"
+            : currentRole;
+    const profileHref = isOwnerInCaregiverMode
+        ? "/caregiver/profile"
+        : isCaregiverInOwnerMode
+            ? "/owner/profile"
+            : `/${currentRole?.toLowerCase()}/profile`;
 
     const handleLogout = () => {
         setIsMobileMenuOpen(false);
@@ -342,30 +419,41 @@ export default function Navbar() {
                                 {isProfileDropdownOpen && (
                                     <div className="absolute right-0 mt-3 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
                                         <div className="px-4 py-3 bg-slate-50 border-b border-gray-100">
-                                            <p className="text-xs font-bold text-slate-900">{currentRole} ACCOUNT</p>
+                                            <p className="text-xs font-bold text-slate-900">{displayRole} ACCOUNT</p>
                                         </div>
                                         <div className="p-2">
                                             {/* VIEW PROFILE */}
                                             {
                                                 currentRole?.toLowerCase()!="admin" &&
                                                 <Link 
-                                                    href={`/${currentRole?.toLowerCase()}/profile`} 
+                                                    href={profileHref} 
                                                     onClick={() => setIsProfileDropdownOpen(false)}
                                                     className="flex items-center gap-2 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-teal-600 rounded-xl transition-colors"
                                                 >
                                                     <Settings size={16} /> View Profile
                                                 </Link>
                                             }
-                                            {/* APPLY TO BE A CAREGIVER (OWNER ONLY) */}
+                                            {/* APPLY TO BE A CAREGIVER / CAREGIVER PAGE / TOGGLE OWNER (OWNER ONLY) */}
                                             {
-                                                currentRole?.toLowerCase()=="owner" &&
+                                                (currentRole?.toLowerCase()=="owner" || (currentRole?.toLowerCase()=="caregiver" && caregiverHasOwnerSecondaryRole)) &&
                                                 <Link 
-                                                    href={`/${currentRole?.toLowerCase()}/apply_caretaker`} 
+                                                    href={dualRoleActionHref}
                                                     onClick={() => setIsProfileDropdownOpen(false)}
                                                     className="flex items-center gap-2 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-teal-600 rounded-xl transition-colors"
                                                 >
-                                                    <Briefcase size={16} /> Apply to be a Caretaker
+                                                    <Briefcase size={16} /> {dualRoleActionLabel}
                                                 </Link>
+                                            }
+                                            {
+                                                caregiverNeedsOwnerSecondaryRole &&
+                                                <button
+                                                    type="button"
+                                                    onClick={handleEnableOwnerMode}
+                                                    disabled={isEnablingOwnerMode}
+                                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-teal-600 rounded-xl transition-colors disabled:opacity-60"
+                                                >
+                                                    <Briefcase size={16} /> {isEnablingOwnerMode ? 'Enabling Owner Mode...' : 'Be an Owner'}
+                                                </button>
                                             }
                                             <button 
                                                 onClick={handleLogout}
@@ -462,14 +550,14 @@ export default function Navbar() {
                                                     : (DEBUG_MODE ? currentRole?.[0] || '' : user?.name?.[0] || '')
                                                 }
                                             </div>
-                                            <p className="text-sm font-bold text-slate-900">Signed in as {currentRole}</p>
+                                            <p className="text-sm font-bold text-slate-900">Signed in as {displayRole}</p>
                                         </div>
                                         
                                         {/* VIEW PROFILE (EXCEPT ADMIN) */}
                                         {
                                             currentRole?.toLowerCase()!="admin" &&
                                             <Link 
-                                                href={`/${currentRole?.toLowerCase()}/profile`} 
+                                                href={profileHref} 
                                                 onClick={() => setIsMobileMenuOpen(false)}
                                                 className="flex items-center justify-center gap-2 w-full py-3 bg-slate-50 text-slate-700 rounded-2xl font-bold"
                                             >
@@ -477,16 +565,27 @@ export default function Navbar() {
                                             </Link>
                                         }
 
-                                        {/* APPLY TO BE A CAREGIVER (OWNER ONLY) */}
+                                        {/* APPLY TO BE A CAREGIVER / CAREGIVER PAGE / TOGGLE OWNER (OWNER ONLY) */}
                                         {
-                                            currentRole?.toLowerCase()=="owner" &&
+                                            (currentRole?.toLowerCase()=="owner" || (currentRole?.toLowerCase()=="caregiver" && caregiverHasOwnerSecondaryRole)) &&
                                             <Link 
-                                                href={`/${currentRole?.toLowerCase()}/apply_caretaker`} 
-                                                onClick={() => setIsProfileDropdownOpen(false)}
+                                                href={dualRoleActionHref}
+                                                onClick={() => setIsMobileMenuOpen(false)}
                                                 className="flex items-center justify-center gap-2 w-full py-3 bg-slate-50 text-slate-700 rounded-2xl font-bold"
                                             >
-                                                <Briefcase size={16} /> Apply to be a Caretaker
+                                                <Briefcase size={16} /> {dualRoleActionLabel}
                                             </Link>
+                                        }
+                                        {
+                                            caregiverNeedsOwnerSecondaryRole &&
+                                            <button
+                                                type="button"
+                                                onClick={handleEnableOwnerMode}
+                                                disabled={isEnablingOwnerMode}
+                                                className="flex items-center justify-center gap-2 w-full py-3 bg-slate-50 text-slate-700 rounded-2xl font-bold disabled:opacity-60"
+                                            >
+                                                <Briefcase size={16} /> {isEnablingOwnerMode ? 'Enabling Owner Mode...' : 'Be an Owner'}
+                                            </button>
                                         }
                                         
                                         <button 

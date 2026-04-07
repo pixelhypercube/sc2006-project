@@ -3,22 +3,32 @@
 // const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 // const prisma = new PrismaClient({ adapter });
 import { prisma } from '../app/lib/prisma'
+import bcrypt from 'bcrypt';
 //const prisma = new PrismaClient();
 
 async function main() {
-    const user = await prisma.user.upsert({
+    const hashedAdminPassword = await bcrypt.hash('123qwe@W', 10);
+
+    const admin = await prisma.user.upsert({
         where: {
-            email: "user@example.com"
+            email: 'admin@admin.com'
         },
-        update: {},
+        update: {
+            name: 'Admin',
+            role: 'ADMIN',
+            password: hashedAdminPassword,
+            verified: true,
+        },
         create: {
-            email: "user@example.com",
-            password: "password",
-            name: "John Doe"
+            email: 'admin@admin.com',
+            password: hashedAdminPassword,
+            name: 'Admin',
+            role: 'ADMIN',
+            verified: true,
         }
         
     });
-    console.log("Seeded user:", user);
+    console.log('Seeded admin:', admin.email);
 }
 
 main()

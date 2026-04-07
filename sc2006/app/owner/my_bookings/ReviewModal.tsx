@@ -11,6 +11,7 @@ interface ReviewModalProps {
 }
 
 export default function ReviewModal({ bookingId, caregiverName, onClose, onSubmitted }: ReviewModalProps) {
+    const { fireToast } = useToast();
     const [rating, setRating] = useState(0);
     const [hoveredRating, setHoveredRating] = useState(0);
     const [comment, setComment] = useState("");
@@ -37,10 +38,11 @@ export default function ReviewModal({ bookingId, caregiverName, onClose, onSubmi
                 const data = await res.json();
                 throw new Error(data.error || 'Failed to submit review');
             }
+            fireToast("success", "Review Submitted", `Thanks for reviewing ${caregiverName}.`);
             onSubmitted();
             onClose();
         } catch (err: any) {
-            alert(err.message);
+            fireToast("danger", "Submit Failed", err?.message || "Unable to submit review.");
         } finally {
             setIsSubmitting(false);
         }

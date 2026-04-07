@@ -46,7 +46,7 @@ export function generateTokens(userId: string, email: string, role: string, reme
       version: crypto.randomBytes(8).toString('hex') // For token revocation
     },
     process.env.JWT_REFRESH_SECRET!,
-    { expiresIn: '7d' }
+    { expiresIn: rememberMe ? '30d' : '7d' }
   );
   
   return { accessToken, refreshToken };
@@ -61,7 +61,7 @@ export function setAuthCookies(response: NextResponse, accessToken: string, refr
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 15 * 60, // 15 minutes in seconds
+    maxAge: 30 * 60, // 30 minutes in seconds (matches access token expiry)
   });
   
   // Set refresh token cookie (HTTP-only)

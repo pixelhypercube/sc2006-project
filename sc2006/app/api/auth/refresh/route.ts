@@ -1,6 +1,18 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken, generateTokens, setAuthCookies, clearAuthCookies } from '@/app/lib/utils';
+import { prisma } from '@/app/lib/prisma';
+
+const SEVEN_DAYS_IN_SECONDS = 7 * 24 * 60 * 60;
+
+function inferRememberMeFromRefreshPayload(payload: { iat?: unknown; exp?: unknown }) {
+  if (typeof payload.iat !== 'number' || typeof payload.exp !== 'number') {
+    return false;
+  }
+
+  // If token lifetime exceeds 7 days, it originated from remember-me login.
+  return payload.exp - payload.iat > SEVEN_DAYS_IN_SECONDS;
+}
 
 export async function POST() {
   try {
@@ -25,12 +37,38 @@ export async function POST() {
       return clearAuthCookies(response);
     }
     
+    const tokenPayload = payload as { userId?: string; iat?: unknown; exp?: unknown };
+    const userId = tokenPayload.userId;
+    if (!userId) {
+      const response = NextResponse.json(
+        { error: 'Invalid refresh token payload' },
+        { status: 401 }
+      );
+      return clearAuthCookies(response);
+    }
+
+    // Refresh tokens must be rebuilt with canonical user claims from DB.
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, role: true },
+    });
+
+    if (!user) {
+      const response = NextResponse.json(
+        { error: 'User not found' },
+        { status: 401 }
+      );
+      return clearAuthCookies(response);
+    }
+
+    const rememberMe = inferRememberMeFromRefreshPayload(tokenPayload);
+
     // Generate new tokens
     const { accessToken, refreshToken: newRefreshToken } = generateTokens(
-      payload.userId,
-      payload.email,
-      payload.role,
-      true // maintain session length
+      user.id,
+      user.email,
+      user.role,
+      rememberMe // maintain original session length
     );
     
     const response = NextResponse.json({
@@ -39,7 +77,7 @@ export async function POST() {
     });
     
     // Set new cookies
-    setAuthCookies(response, accessToken, newRefreshToken, true);
+    setAuthCookies(response, accessToken, newRefreshToken, rememberMe);
     
     return response;
     

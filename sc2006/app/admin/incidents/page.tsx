@@ -10,60 +10,97 @@ import {
     ChevronLeft, ChevronDown
 } from "lucide-react";
 
+type IncidentRecord = {
+    id: string;
+    bookingId: string;
+    reporterId: string;
+    caregiverId: string;
+    type: "SAFETY" | "UNRESPONSIVE" | "OTHER";
+    title: string;
+    priority: "LOW" | "MEDIUM" | "HIGH";
+    status: "PENDING" | "UNDER_REVIEW" | "RESOLVED" | "DISMISSED";
+    description: string;
+    attachmentUrl?: string | null;
+    attachmentType?: string | null;
+    attachmentName?: string | null;
+    filed: string;
+    resolvedAt?: string | null;
+    resolutionNotes?: string | null;
+    reporter: string;
+    caretaker: string;
+    bookingPetName: string;
+    bookingStartDate: string;
+    bookingEndDate: string;
+    resolvedBy?: string | null;
+};
+
 export default function AdminIncidents() {
     const searchParams = useSearchParams();
     
     const [isEvidenceOpen, setIsEvidenceOpen] = useState(false);
     const [isResolveOpen, setIsResolveOpen] = useState(false);
+    const [incidents, setIncidents] = useState<IncidentRecord[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [resolutionNotes, setResolutionNotes] = useState("");
+    const [isResolving, setIsResolving] = useState(false);
+    const [resolutionError, setResolutionError] = useState<string | null>(null);
+    const [resolutionStatus, setResolutionStatus] = useState<"RESOLVED" | "DISMISSED">("RESOLVED");
     
     // Get initial values from URL params (reads once on load, does not update URL later)
     const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || "");
     const [priorityFilter, setPriorityFilter] = useState(searchParams.get('priority') || "all");
-    const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || "all");
-    
-    // Mock incidents data
-    const [incidents] = useState([
-        {
-            id: "INC-442",
-            title: "Dog Malnourished",
-            reporter: "Mr Doob",
-            caretaker: "Sarah Chen",
-            priority: "High",
-            status: "Pending",
-            filed: "Feb 15, 2026",
-            description: "The dog appears underweight and not properly fed during the care period."
-        },
-        {
-            id: "INC-443",
-            title: "Late Check-in",
-            reporter: "Jane Smith",
-            caretaker: "Mike Tan",
-            priority: "Medium",
-            status: "Pending",
-            filed: "Mar 02, 2026",
-            description: "Caretaker was 2 hours late for the scheduled check-in time."
-        },
-        {
-            id: "INC-444",
-            title: "Missing Supplies",
-            reporter: "David Lee",
-            caretaker: "Lisa Wong",
-            priority: "Low",
-            status: "Resolved",
-            filed: "Mar 18, 2026",
-            description: "Pet food and water were not provided as requested."
-        }
-    ]);
+    const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || "PENDING");
 
     // Get incident ID from URL params if available on load
-    const [selectedIncident, setSelectedIncident] = useState(() => {
+    const [selectedIncident, setSelectedIncident] = useState<IncidentRecord | null>(null);
+
+    const loadIncidents = async () => {
+        setIsLoading(true);
+        setLoadError(null);
+
+        try {
+            const response = await fetch('/api/incidents', { credentials: 'include' });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to fetch incidents');
+            }
+
+            const records: IncidentRecord[] = (data.incidents ?? []).map((incident: any) => ({
+                ...incident,
+                filed: new Date(incident.filed).toLocaleDateString(),
+                priority: incident.priority as IncidentRecord['priority'],
+                status: incident.status as IncidentRecord['status'],
+                type: incident.type as IncidentRecord['type'],
+            }));
+
+            setIncidents(records);
+        } catch (error) {
+            setLoadError(error instanceof Error ? error.message : 'Failed to fetch incidents');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadIncidents();
+    }, []);
+
+    useEffect(() => {
+        if (incidents.length === 0) return;
+
         const searchVal = searchParams.get('search');
         if (searchVal) {
-            const found = incidents.find(i => i.id.toLowerCase() === searchVal.toLowerCase());
-            if (found) return found;
+            const found = incidents.find((incident) => incident.id.toLowerCase() === searchVal.toLowerCase());
+            if (found) {
+                setSelectedIncident(found);
+                return;
+            }
         }
-        return incidents.find(i => i.priority === "High" && i.status === "Pending") || incidents[0];
-    });
+
+        setSelectedIncident((current) => current ?? incidents.find((incident) => incident.priority === 'HIGH' && incident.status === 'PENDING') ?? incidents[0]);
+    }, [incidents, searchParams]);
 
     // Filter incidents based on search and filters
     const filteredIncidents = incidents.filter(incident => {
@@ -95,9 +132,53 @@ export default function AdminIncidents() {
     // Helper for dynamic card borders
     const getPriorityBorder = (priority: string) => {
         switch(priority) {
-            case "High": return "border-l-red-500";
-            case "Medium": return "border-l-orange-500";
+            case "HIGH": return "border-l-red-500";
+            case "MEDIUM": return "border-l-orange-500";
             default: return "border-l-blue-400";
+        }
+    };
+
+    const displayPriority = (priority: IncidentRecord['priority']) => priority.charAt(0) + priority.slice(1).toLowerCase();
+    const displayStatus = (status: IncidentRecord['status']) => status.replace(/_/g, ' ');
+
+    const handleOpenResolve = (incident: IncidentRecord, status: "RESOLVED" | "DISMISSED" = "RESOLVED") => {
+        setSelectedIncident(incident);
+        setResolutionStatus(status);
+        setResolutionNotes("");
+        setResolutionError(null);
+        setIsResolveOpen(true);
+    };
+
+    const handleSubmitResolution = async () => {
+        if (!selectedIncident) return;
+
+        setIsResolving(true);
+        setResolutionError(null);
+
+        try {
+            const response = await fetch('/api/incidents', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    incidentId: selectedIncident.id,
+                    status: resolutionStatus,
+                    resolutionNotes: resolutionNotes.trim() || undefined,
+                }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to update incident');
+            }
+
+            await loadIncidents();
+            setIsResolveOpen(false);
+            setResolutionNotes("");
+        } catch (error) {
+            setResolutionError(error instanceof Error ? error.message : 'Failed to update incident');
+        } finally {
+            setIsResolving(false);
         }
     };
 
@@ -122,7 +203,7 @@ export default function AdminIncidents() {
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
                     <div className="flex flex-wrap gap-4 items-center">
                         {/* Search Field */}
-                        <div className="relative flex-1 min-w-[250px]">
+                        <div className="relative flex-1 min-w-62.5">
                             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input
                                 type="text"
@@ -143,9 +224,9 @@ export default function AdminIncidents() {
                                     className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none pr-10"
                                 >
                                     <option value="all">All Priorities</option>
-                                    <option value="High">High</option>
-                                    <option value="Medium">Medium</option>
-                                    <option value="Low">Low</option>
+                                    <option value="HIGH">High</option>
+                                    <option value="MEDIUM">Medium</option>
+                                    <option value="LOW">Low</option>
                                 </select>
                                 <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                             </div>
@@ -161,8 +242,10 @@ export default function AdminIncidents() {
                                     className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 appearance-none pr-10"
                                 >
                                     <option value="all">All Status</option>
-                                    <option value="Pending">Pending</option>
-                                    <option value="Resolved">Resolved</option>
+                                    <option value="PENDING">Pending</option>
+                                    <option value="UNDER_REVIEW">Under Review</option>
+                                    <option value="RESOLVED">Resolved</option>
+                                    <option value="DISMISSED">Dismissed</option>
                                 </select>
                                 <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                             </div>
@@ -172,12 +255,16 @@ export default function AdminIncidents() {
 
                 {/* Results Count */}
                 <div className="text-md font-medium italic text-slate-400 ml-auto mb-2">
-                    Showing {filteredIncidents.length} of {incidents.length} incident{incidents.length !== 1 ? 's' : ''}
+                    {isLoading
+                        ? 'Loading incidents...'
+                        : loadError
+                            ? loadError
+                            : `Showing ${filteredIncidents.length} of ${incidents.length} incident${incidents.length !== 1 ? 's' : ''}`}
                 </div>
 
                 {/* INCIDENT LIST */}
                 <div className="space-y-4">
-                    {filteredIncidents.map((incident) => (
+                    {!isLoading && !loadError && filteredIncidents.map((incident) => (
                         <div 
                             key={incident.id}
                             className={`bg-white border-y border-r border-slate-200 border-l-4 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all hover:shadow-md ${getPriorityBorder(incident.priority)}`}
@@ -186,23 +273,23 @@ export default function AdminIncidents() {
                                 {/* Top Row: ID & Badges */}
                                 <div className="flex items-center gap-3">
                                     <span className="text-md font-bold text-slate-500">
-                                        {incident.id}
+                                        Incident ID: {incident.id}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border ${
-                                        incident.priority === "High" ? "bg-red-50 text-red-700 border-red-200" :
-                                        incident.priority === "Medium" ? "bg-orange-50 text-orange-700 border-orange-200" :
+                                        incident.priority === "HIGH" ? "bg-red-50 text-red-700 border-red-200" :
+                                        incident.priority === "MEDIUM" ? "bg-orange-50 text-orange-700 border-orange-200" :
                                         "bg-blue-50 text-blue-700 border-blue-200"
                                     }`}>
-                                        {incident.priority === "High" && <AlertTriangle size={12} strokeWidth={3} />}
-                                        {incident.priority} Priority
+                                        {incident.priority === "HIGH" && <AlertTriangle size={12} strokeWidth={3} />}
+                                        {displayPriority(incident.priority)} Priority
                                     </span>
                                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold uppercase border ${
-                                         incident.status === "Pending" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-100 text-slate-600 border-slate-200"
+                                         incident.status === "PENDING" ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-100 text-slate-600 border-slate-200"
                                      }`}>
-                                         {incident.status === "Pending" ? <Clock size={12} /> : <CheckCircle size={12} />}
-                                         {incident.status}
+                                         {incident.status === "PENDING" ? <Clock size={12} /> : <CheckCircle size={12} />}
+                                         {displayStatus(incident.status)}
                                      </span>
                                 </div>
                                 
@@ -239,11 +326,10 @@ export default function AdminIncidents() {
                                 >
                                     View Evidence
                                 </button>
-                                {incident.status === "Pending" && (
+                                {incident.status === "PENDING" && (
                                     <button 
                                         onClick={() => {
-                                            setSelectedIncident(incident);
-                                            setIsResolveOpen(true);
+                                            handleOpenResolve(incident, 'RESOLVED');
                                         }}
                                         className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-md active:scale-95 whitespace-nowrap"
                                     >
@@ -254,7 +340,7 @@ export default function AdminIncidents() {
                         </div>
                     ))}
                     
-                    {filteredIncidents.length === 0 && (
+                    {!isLoading && !loadError && filteredIncidents.length === 0 && (
                         <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
                             <AlertCircle size={48} className="mx-auto text-slate-300 mb-4" />
                             <h3 className="text-lg font-bold text-slate-900 mb-1">No incidents found</h3>
@@ -265,10 +351,10 @@ export default function AdminIncidents() {
             </main>
 
             {/* MODAL: VIEW EVIDENCE */}
-            {isEvidenceOpen && (
-                <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 md:p-6" onClick={() => setIsEvidenceOpen(false)}>
+            {isEvidenceOpen && selectedIncident && (
+                <div className="fixed inset-0 bg-black/50 z-100 flex items-center justify-center p-4 md:p-6" onClick={() => setIsEvidenceOpen(false)}>
                     {/* Increased max-width from 640px to 880px to accommodate the two columns */}
-                    <div className="bg-white rounded-[24px] w-full max-w-[880px] shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col p-6 md:p-8 gap-6" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-white rounded-3xl w-full max-w-220 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col p-6 md:p-8 gap-6" onClick={(e) => e.stopPropagation()}>
                         
                         {/* Header */}
                         <div className="flex justify-between items-start">
@@ -286,12 +372,37 @@ export default function AdminIncidents() {
                             
                             {/* Left Column: Video Area (Takes up ~55% of width on desktop) */}
                             <div className="w-full md:w-[55%] flex flex-col">
-                                <div className="aspect-[16/9] w-full bg-[#1a1c29] rounded-2xl flex items-center justify-center text-white relative overflow-hidden group shadow-inner">
-                                    <div className="w-16 h-16 flex items-center justify-center cursor-pointer group-hover:scale-110 transition-transform duration-300 drop-shadow-lg">
-                                        <Play fill="currentColor" size={48} className="ml-2 text-white" />
+                                {selectedIncident.attachmentUrl ? (
+                                    selectedIncident.attachmentType?.startsWith('video/') ? (
+                                        <div className="aspect-video w-full bg-[#111827] rounded-2xl overflow-hidden shadow-inner border border-slate-200">
+                                            <video
+                                                src={selectedIncident.attachmentUrl}
+                                                controls
+                                                className="w-full h-full object-contain bg-black"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="aspect-video w-full bg-slate-100 rounded-2xl overflow-hidden shadow-inner border border-slate-200">
+                                            <img
+                                                src={selectedIncident.attachmentUrl}
+                                                alt={selectedIncident.attachmentName || 'Incident evidence'}
+                                                className="w-full h-full object-contain"
+                                            />
+                                        </div>
+                                    )
+                                ) : (
+                                    <div className="aspect-video w-full bg-[#1a1c29] rounded-2xl flex items-center justify-center text-white relative overflow-hidden group shadow-inner">
+                                        <div className="w-16 h-16 flex items-center justify-center cursor-default drop-shadow-lg opacity-70">
+                                            <Play fill="currentColor" size={48} className="ml-2 text-white" />
+                                        </div>
+                                        <p className="absolute bottom-5 left-6 text-xs font-bold uppercase tracking-widest text-[#cbd5e1] drop-shadow-md">No attachment uploaded</p>
                                     </div>
-                                    <p className="absolute bottom-5 left-6 text-xs font-bold uppercase tracking-widest text-[#cbd5e1] drop-shadow-md">Check-in Video (15s)</p>
-                                </div>
+                                )}
+                                {selectedIncident.attachmentUrl && (
+                                    <p className="mt-2 text-xs text-slate-500 font-medium truncate">
+                                        File: {selectedIncident.attachmentName || 'Uploaded evidence'}
+                                    </p>
+                                )}
                             </div>
 
                             {/* Right Column: Details (Takes up ~45% of width on desktop) */}
@@ -313,13 +424,13 @@ export default function AdminIncidents() {
                                     
                                     {/* Priority */}
                                     <div className={`p-3.5 rounded-xl border ${
-                                        selectedIncident.priority === "High" ? "bg-[#fff7ed] border-[#fed7aa]" :
-                                        selectedIncident.priority === "Medium" ? "bg-[#fffbeb] border-[#fde68a]" :
+                                        selectedIncident.priority === "HIGH" ? "bg-[#fff7ed] border-[#fed7aa]" :
+                                        selectedIncident.priority === "MEDIUM" ? "bg-[#fffbeb] border-[#fde68a]" :
                                         "bg-[#eff6ff] border-[#bfdbfe]"
                                     }`}>
                                         <p className={`text-[10px] font-black uppercase tracking-wider mb-1 ${
-                                            selectedIncident.priority === "High" ? "text-[#ea580c]" :
-                                            selectedIncident.priority === "Medium" ? "text-[#d97706]" :
+                                            selectedIncident.priority === "HIGH" ? "text-[#ea580c]" :
+                                            selectedIncident.priority === "MEDIUM" ? "text-[#d97706]" :
                                             "text-[#2563eb]"
                                         }`}>Priority</p>
                                         <p className="text-sm font-bold text-[#0f172a]">{selectedIncident.priority}</p>
@@ -355,9 +466,9 @@ export default function AdminIncidents() {
             )}
 
             {/* MODAL: RESOLVE CASE */}
-            {isResolveOpen && (
-                <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-6" onClick={() => setIsResolveOpen(false)}>
-                    <div className="bg-white rounded-[24px] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            {isResolveOpen && selectedIncident && (
+                <div className="fixed inset-0 bg-black/50 z-100 flex items-center justify-center p-6" onClick={() => setIsResolveOpen(false)}>
+                    <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
                         <div className="p-6 border-b border-slate-100 bg-slate-50">
                             <h2 className="font-bold text-lg text-slate-900">Final Resolution</h2>
                             <p className="text-sm text-slate-500">Case ID: {selectedIncident.id}</p>
@@ -367,17 +478,46 @@ export default function AdminIncidents() {
                                 <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-2">Resolution Notes</label>
                                 <textarea 
                                     placeholder="Enter findings and action taken..."
+                                    value={resolutionNotes}
+                                    onChange={(e) => setResolutionNotes(e.target.value)}
                                     className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all resize-none"
                                 />
                             </div>
+                            {resolutionError && (
+                                <p className="text-sm font-semibold text-red-600">{resolutionError}</p>
+                            )}
                             <div className="flex gap-3">
-                                <button className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors">Dismiss Case</button>
-                                <button className="flex-1 py-3 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-600/20">Sanction User</button>
+                                <button
+                                    onClick={() => setResolutionStatus('DISMISSED')}
+                                    className={`flex-1 py-3 rounded-xl text-sm font-bold transition-colors ${
+                                        resolutionStatus === 'DISMISSED'
+                                            ? 'bg-slate-900 text-white'
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                    }`}
+                                >
+                                    Dismiss Case
+                                </button>
+                                <button
+                                    onClick={() => setResolutionStatus('RESOLVED')}
+                                    className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all shadow-lg ${
+                                        resolutionStatus === 'RESOLVED'
+                                            ? 'bg-red-600 text-white shadow-red-600/20'
+                                            : 'bg-red-50 text-red-600 hover:bg-red-100 shadow-none'
+                                    }`}
+                                >
+                                    Suspend User
+                                </button>
                             </div>
                         </div>
                         <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
                             <button onClick={() => setIsResolveOpen(false)} className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors">Cancel</button>
-                            <button className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-md">Submit Resolution</button>
+                            <button
+                                onClick={handleSubmitResolution}
+                                disabled={isResolving}
+                                className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 disabled:opacity-60 transition-all shadow-md"
+                            >
+                                {isResolving ? 'Submitting...' : 'Submit Resolution'}
+                            </button>
                         </div>
                     </div>
                 </div>

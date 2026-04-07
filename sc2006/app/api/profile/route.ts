@@ -21,6 +21,7 @@ export async function PUT(request: NextRequest) {
     const {
       name, phone, biography, location, latitude, longitude,
       dailyRate, experience, isAcceptingRequests,
+      availabilityStartDate, availabilityEndDate,
       selectedPets, selectedSizes, selectedServices,
     } = body;
 
@@ -41,7 +42,8 @@ export async function PUT(request: NextRequest) {
           where: { id: payload.userId },
           data: {
             name,
-            ...(phone !== undefined && { phone }),
+            ...(phone !== undefined && phone !== '' && { phone }),
+            ...(phone === '' && { phone: null }),
             ...(location !== undefined && { location }),
             ...(biography !== undefined && { biography }),
             ...(latitude !== undefined && { latitude: latitude !== '' ? parseFloat(latitude) : null }),
@@ -62,6 +64,12 @@ export async function PUT(request: NextRequest) {
             ...(dailyRate !== undefined && { dailyRate: parseFloat(dailyRate) }),
             ...(experience !== undefined && { experienceYears: parseInt(experience) }),
             ...(isAcceptingRequests !== undefined && { isAcceptingRequests }),
+            ...(availabilityStartDate !== undefined && {
+              availabilityStartDate: availabilityStartDate ? new Date(availabilityStartDate) : null,
+            }),
+            ...(availabilityEndDate !== undefined && {
+              availabilityEndDate: availabilityEndDate ? new Date(availabilityEndDate) : null,
+            }),
             ...(Array.isArray(selectedPets) && { petPreferences: selectedPets as PetType[] }),
             ...(Array.isArray(selectedSizes) && { dogSizes: selectedSizes as DogSize[] }),
             ...(Array.isArray(selectedServices) && { services: selectedServices as ServiceType[] }),
@@ -77,7 +85,8 @@ export async function PUT(request: NextRequest) {
         where: { id: payload.userId },
         data: {
           name,
-          ...(phone !== undefined && { phone }),
+          ...(phone !== undefined && phone !== '' && { phone }),
+          ...(phone === '' && { phone: null }),
           ...(location !== undefined && { location }),
           ...(biography !== undefined && { biography }),
           ...(latitude !== undefined && { latitude: latitude !== '' ? parseFloat(latitude) : null }),

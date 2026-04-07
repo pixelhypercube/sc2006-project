@@ -12,7 +12,7 @@
  * 
  * @example Pet Owner dashboard only
  * ```tsx
- * <ProtectedRoute allowedRoles={['PET_OWNER']}>
+ * <ProtectedRoute allowedRoles={['OWNER']}>
  *   <PetOwnerDashboard />
  * </ProtectedRoute>
  * ```
@@ -38,7 +38,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: Array<'PET_OWNER' | 'CAREGIVER' | 'ADMIN'>;
+  allowedRoles?: Array<'OWNER' | 'CAREGIVER' | 'ADMIN'>;
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {

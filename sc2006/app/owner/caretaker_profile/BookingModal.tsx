@@ -7,11 +7,14 @@ import { useBooking } from "@/hooks/useBooking";
 interface BookingModalProps {
     caregiverName: string;
     caregiverId: string;
+    dailyRate: number;
     pets: Pet[];
+    availabilityStartDate?: string | null;
+    availabilityEndDate?: string | null;
     onClose: () => void;
 }
 
-export default function BookingModal({ caregiverName, caregiverId, pets, onClose }: BookingModalProps) {
+export default function BookingModal({ caregiverName, caregiverId, dailyRate, pets, availabilityStartDate, availabilityEndDate, onClose }: BookingModalProps) {
     // --- STATE MANAGEMENT ---
     const [step, setStep] = useState<1 | 2>(1);
     const { createBooking, loading } = useBooking();
@@ -25,8 +28,12 @@ export default function BookingModal({ caregiverName, caregiverId, pets, onClose
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
 
+    const hasAvailabilityWindow = !!availabilityStartDate && !!availabilityEndDate;
+    const availabilityRangeLabel = hasAvailabilityWindow
+        ? `${new Date(availabilityStartDate).toLocaleDateString("en-SG", { year: "numeric", month: "short", day: "numeric" })} - ${new Date(availabilityEndDate).toLocaleDateString("en-SG", { year: "numeric", month: "short", day: "numeric" })}`
+        : "No date limit";
+
     // Step 2 Math State
-    const dailyRate = 65;
     const days = startDate && endDate
         ? Math.max(1, Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)))
         : 1;
@@ -121,6 +128,12 @@ export default function BookingModal({ caregiverName, caregiverId, pets, onClose
                             </div>
                         </div>
 
+                        {hasAvailabilityWindow && (
+                            <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-700">
+                                Caregiver booking window: {availabilityRangeLabel}
+                            </div>
+                        )}
+
                         {/* SPECIAL INSTRUCTIONS */}
                         <div>
                             <label className="text-xs font-black text-slate-900 uppercase tracking-widest block mb-2">
@@ -208,6 +221,21 @@ export default function BookingModal({ caregiverName, caregiverId, pets, onClose
                                 onClick={async () => {
                                     setErrorMsg("");
                                     setSuccessMsg("");
+
+                                    if (hasAvailabilityWindow && startDate && endDate) {
+                                        const selectedStart = new Date(startDate);
+                                        const selectedEnd = new Date(endDate);
+                                        const availableStart = new Date(availabilityStartDate as string);
+                                        availableStart.setHours(0, 0, 0, 0);
+                                        const availableEnd = new Date(availabilityEndDate as string);
+                                        availableEnd.setHours(23, 59, 59, 999);
+
+                                        if (selectedStart < availableStart || selectedEnd > availableEnd) {
+                                            setErrorMsg(`This caregiver only accepts bookings between ${availabilityRangeLabel}.`);
+                                            return;
+                                        }
+                                    }
+
                                     const result = await createBooking({
                                         caregiverId,
                                         petId: selectedPet,
@@ -216,11 +244,12 @@ export default function BookingModal({ caregiverName, caregiverId, pets, onClose
                                         specialInstructions: specialInstructions || undefined,
                                         totalPrice: total,
                                     });
-                                    if (result) {
+                                    if (result?.success) {
                                         setSuccessMsg("Booking request sent successfully!");
                                         setTimeout(() => onClose(), 1500);
                                     } else {
-                                        setErrorMsg("Caregiver is unavailable during the requested dates.");
+                                        const backendMessage = result?.message || "Caregiver is unavailable during the requested dates.";
+                                        setErrorMsg(backendMessage);
                                     }
                                 }}
                                 disabled={loading}

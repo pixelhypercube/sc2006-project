@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useBooking } from "@/hooks/useBooking";
 import { useAuth } from "@/hooks/useAuth";
 import ReviewModal from "./ReviewModal"; // Import the new modal here
+import IncidentModal from "../active_care/IncidentModal";
 import { 
     Clock, 
     Calendar, 
@@ -14,7 +15,6 @@ import {
     Activity,
     Star,
     CheckCircle,
-    DollarSign,
     AlertCircle,
     Check
 } from "lucide-react";
@@ -22,6 +22,7 @@ import {
 export default function Bookings() {
     const [activeTab, setActiveTab] = useState("active");
     const [reviewCaregiver, setReviewCaregiver] = useState<{ id: string; name: string } | null>(null);
+    const [incidentContext, setIncidentContext] = useState<{ bookingId: string; petName: string; caregiverName: string } | null>(null);
     const [bookings, setBookings] = useState<any[]>([]);
     const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
     const { user } = useAuth();
@@ -39,14 +40,15 @@ export default function Bookings() {
 
         // Map fetched data to expected format
         const mappedBookings = (data || []).map((b: any) => ({
+            status: String(b.status ?? "").toUpperCase(),
             id: b.id,
+            startDate: b.startDate,
             petName: b.pet?.name ?? 'Unknown Pet',
             caregiverId: b.caregiver?.id ?? '',
             caregiverName: b.caregiver?.name ?? 'Unknown Caregiver',
             dates: `${new Date(b.startDate).toLocaleDateString()} - ${new Date(b.endDate).toLocaleDateString()}`,
             location: 'In Home',
             price: b.totalPrice ?? 0,
-            status: b.status,
             hasReview: !!b.review,
         }));
 
@@ -59,7 +61,7 @@ export default function Bookings() {
         } else {
             return ["COMPLETED", "CANCELLED", "DECLINED"].includes(b.status.toUpperCase());
         }
-    });
+    }).sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
     console.log("Filtered Bookings:", filteredBookings);
 
     const handlePayment = async (bookingId: string, amount: number) => {
@@ -92,8 +94,8 @@ export default function Bookings() {
                 <div className="flex gap-2 mb-10 bg-slate-200/50 p-1.5 rounded-xl w-fit border border-slate-200/50">
                     {["active", "past"].map((tab) => {                                                                                    
                          const count = tab === "active"                                                                                    
-                             ? bookings.filter(b => ["PENDING", "ACTIVE", "CONFIRMED", "IN_PROGRESS"].includes(b.status)).length                          
-                             : bookings.filter(b => ["COMPLETED", "CANCELLED", "DECLINED"].includes(b.status)).length;                                 
+                             ? bookings.filter(b => ["PENDING", "ACTIVE", "CONFIRMED", "IN_PROGRESS"].includes(String(b.status).toUpperCase())).length                          
+                             : bookings.filter(b => ["COMPLETED", "CANCELLED", "DECLINED"].includes(String(b.status).toUpperCase())).length;                                 
                          return (                                                                                                          
                              <button                                                                                                       
                                  key={tab}                                                                                                 
@@ -112,21 +114,29 @@ export default function Bookings() {
                 <div className="space-y-6">
                     {filteredBookings.length > 0 ? (
                         filteredBookings.map((booking) => (
+                            (() => {
+                                const statusCode = String(booking.status).toUpperCase();
+                                const statusLabel = statusCode.replace(/_/g, " ");
+                                const isLive = statusCode === "IN_PROGRESS" || statusCode === "ACTIVE";
+                                const isCompleted = statusCode === "COMPLETED";
+                                const isAwaiting = statusCode === "PENDING" || statusCode === "CONFIRMED";
+
+                                return (
                             <div key={booking.id} className="bg-white border border-slate-100 rounded-4xl p-8 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
                                 <div className="space-y-3 flex-1">
                                     <div className="flex items-center gap-4">
                                         <h3 className="text-2xl font-black text-slate-900">{booking.petName}</h3>
                                         <span className={`px-3.5 py-1.5 text-xs font-black rounded-xl border uppercase tracking-widest flex items-center gap-1.5 ${
-                                            booking.status === 'Active' 
+                                            isLive
                                             ? "bg-teal-50 text-teal-600 border-teal-100 animate-pulse" 
-                                            : booking.status === 'Completed'
+                                            : isCompleted
                                             ? "bg-slate-50 text-slate-600 border-slate-200"
                                             : "bg-amber-50 text-amber-600 border-amber-100"
                                         }`}>
-                                            {booking.status === 'Active' && <Activity size={12} strokeWidth={3} />}
-                                            {booking.status === 'Confirmed' && <Clock size={12} strokeWidth={3} />}
-                                            {booking.status === 'Completed' && <CheckCircle size={12} strokeWidth={3} />}
-                                            {booking.status === 'Active' ? 'Live Now' : booking.status}
+                                            {isLive && <Activity size={12} strokeWidth={3} />}
+                                            {isAwaiting && <Clock size={12} strokeWidth={3} />}
+                                            {isCompleted && <CheckCircle size={12} strokeWidth={3} />}
+                                            {statusLabel}
                                         </span>
                                     </div>
                                     <p className="text-slate-500 text-base font-medium">Care provided by <span className="text-slate-900 font-bold">{booking.caregiverName}</span></p>
@@ -179,16 +189,20 @@ export default function Bookings() {
                                         <MessageCircle size={16} /> Message
                                     </Link>
                                     
-                                    {booking.status === "Active" && (
-                                        <Link 
-                                            href={`/owner/active_care`}
+                                    {isLive && (
+                                        <button
+                                            onClick={() => setIncidentContext({
+                                                bookingId: booking.id,
+                                                petName: booking.petName,
+                                                caregiverName: booking.caregiverName,
+                                            })}
                                             className="flex-1 px-8 py-3.5 bg-teal-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-teal-700 transition-all shadow-lg shadow-teal-600/20 text-center flex items-center justify-center gap-2 active:scale-95"
                                         >
-                                            <Activity size={16} /> Active Hub
-                                        </Link>
+                                            <AlertCircle size={16} /> Report Incident
+                                        </button>
                                     )}
 
-                                    {booking.status === "COMPLETED" && !booking.hasReview && (
+                                    {activeTab === "past" && isCompleted && !booking.hasReview && (
                                         <button
                                             onClick={() => setReviewCaregiver({ id: booking.id, name: booking.caregiverName })}
                                             className="flex-1 px-8 py-3.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-100 transition-all text-center flex items-center justify-center gap-2 active:scale-95"
@@ -196,13 +210,15 @@ export default function Bookings() {
                                             <Star size={16} fill="currentColor" /> Leave Review
                                         </button>
                                     )}
-                                    {booking.status === "COMPLETED" && booking.hasReview && (
+                                    {activeTab === "past" && isCompleted && booking.hasReview && (
                                         <span className="flex-1 px-8 py-3.5 bg-slate-50 text-slate-400 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-center flex items-center justify-center gap-2">
                                             <Star size={16} fill="currentColor" /> Reviewed
                                         </span>
                                     )}
                                 </div>
                             </div>
+                                );
+                            })()
                         ))
                     ) : (
                         <div className="bg-white border-2 border-dashed border-slate-200 rounded-[2.5rem] p-20 text-center flex flex-col items-center shadow-sm">
@@ -226,6 +242,15 @@ export default function Bookings() {
                     caregiverName={reviewCaregiver.name}
                     onClose={() => setReviewCaregiver(null)}
                     onSubmitted={loadBookings}
+                />
+            )}
+
+            {incidentContext && (
+                <IncidentModal
+                    onClose={() => setIncidentContext(null)}
+                    bookingId={incidentContext.bookingId}
+                    petName={incidentContext.petName}
+                    caregiverName={incidentContext.caregiverName}
                 />
             )}
         </div>
